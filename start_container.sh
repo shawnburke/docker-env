@@ -92,13 +92,17 @@ port_arg=
 
 [[ -n "$existing_port" ]] && port_arg="-p $existing_port:22" && echo "Reusing port $existing_port"
 
-docker run -d -P \
+if docker run -d -P \
   --name $container_name \
   -v $user_home:/home/$user \
   -l owner=$user \
   -e ENV_USER=$user $port_arg \
   --restart unless-stopped \
   container_env:latest
+then
+  echo "Created container $container_name"
+fi
+
 
 port=$(docker port $container_name 22)
 [[ -z "$existing_port" ]] && printf "$portkey\t$port\n" >> ports

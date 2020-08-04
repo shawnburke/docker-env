@@ -1,5 +1,5 @@
 #! /bin/bash
-
+# check arg
 echo "Setting up user $1"
 
 if [ -z "$1" ]
@@ -12,6 +12,8 @@ if ! useradd  $1
 then
 	echo "User exists"
 	exit 0
+else
+  usermod -aG sudo $1
 fi
 
 pwd=$1
@@ -21,14 +23,13 @@ then
   pwd=$2
 fi
 
-
-
+# setup home dir
 mkdir -p /home/$1/.ssh
 cd /home/$1/.ssh
+
+
 touch authorized_keys
-chnod 600 authorized_keys
-
-
+chmod 600 authorized_keys
 chown -R $1:$1 /home/$1
 
 

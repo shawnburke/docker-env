@@ -7,7 +7,7 @@ FROM golang:latest
 
 
 # Verify git, process tools installed
-RUN apt-get update && apt-get -yq install git procps ftp sqlite3 build-essential tzdata python-pip ffmpeg openssh-server
+RUN apt-get update && apt-get -yq install sudo git procps ftp sqlite3 build-essential tzdata python-pip ffmpeg openssh-server
 RUN pip install amcrest
 
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -y nodejs
