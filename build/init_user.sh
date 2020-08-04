@@ -1,0 +1,40 @@
+#! /bin/bash
+
+echo "Setting up user $1"
+
+if [ -z "$1" ]
+then
+	echo "No user set!"
+	exit 1
+fi
+
+if ! useradd  $1
+then
+	echo "User exists"
+	exit 0
+fi
+
+pwd=$1
+
+if [ -n "$2" ]
+then
+  pwd=$2
+fi
+
+
+
+mkdir -p /home/$1/.ssh
+cd /home/$1/.ssh
+touch authorized_keys
+chnod 600 authorized_keys
+
+
+chown -R $1:$1 /home/$1
+
+
+usermod --shell /bin/bash $1
+# set password async because it 
+# fails if done during entry point
+bash -c "sleep 1; printf '$1\n$1' | passwd shawn; echo 'passwd set'" &
+
+
