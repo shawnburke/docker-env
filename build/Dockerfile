@@ -7,9 +7,18 @@ FROM golang:latest
 
 
 # Verify git, process tools installed
-RUN apt-get update && apt-get -yq install sudo git procps ftp sqlite3 build-essential tzdata python-pip ffmpeg openssh-server
+RUN apt-get update
+
+# Install: git, jq, sqlite, python
+RUN apt-get -yq install sudo git jq procps ftp sqlite3 netcat
+RUN apt-get -yq install build-essential tzdata python-pip ffmpeg openssh-server
+
+## Add other prereqs here
+# RUN apt-get -yq install some-package
+
 RUN pip install amcrest
 
+## Setup Node
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -y nodejs
 
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg |  apt-key add - && \
@@ -23,8 +32,17 @@ RUN apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 
+
+##
+## WARNING! Docker-Env needs all of the settings
+## below here, modify with care!
+##    
+
+# Set up root account with common password
+# TODO: make this an arg
 ARG ROOTPASSWORD=linuxdev
 
+# Setup ssh server
 RUN mkdir /var/run/sshd
 RUN echo 'root:$ROOTPASSWORD' | chpasswd
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -32,10 +50,11 @@ RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/s
 # SSH login fix. Otherwise user is kicked off after login
 RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
+LABEL docker-env=true
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 COPY init_user.sh /root
-copy entrypoint.sh /root
+COPY entrypoint.sh /root
 
 EXPOSE 22
 

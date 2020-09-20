@@ -27,14 +27,17 @@ fi
 mkdir -p /home/$1/.ssh
 cd /home/$1/.ssh
 
-
+# set up the authorized keys file so that the
+# host machine can securely SSH in for same user
 touch authorized_keys
 chmod 600 authorized_keys
 chown -R $1:$1 /home/$1
 
 
 usermod --shell /bin/bash $1
-# set password async because it 
+
+
+# HACK: set password async because it 
 # fails if done during entry point
 bash -c "sleep 1; printf '$1\n$1' | passwd shawn; echo 'passwd set'" &
 
