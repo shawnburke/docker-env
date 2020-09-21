@@ -1,6 +1,5 @@
 #! /bin/bash
 
-set -x
 command=$1
 shift 1
 
@@ -32,11 +31,11 @@ function start_container {
 #    a container but keeping its port stable across restarts
 # 5. Starts a container and adds entry to the port file.
 
-    if [ -z "$1" ] 
+    if ! docker inspect $image_name 2>&1 >/dev/null
     then
-        echo "user name required"
-        exit 1
+        do_build
     fi 
+
 
     force=$([ "$2" == "-f" ] && echo "true")
 
@@ -46,19 +45,16 @@ function start_container {
         tag=$3
     fi
 
+    user=$1
+    user=${user:-$USER}
 
     #
     # Setup container name and other vars
     #
-    user=$1
     home_root=$(pwd)/home
 
-    container_name=$1_env
-
-    if [ -n "$2" ]
-    then
-        container_name=$2
-    fi
+    container_name=$2
+    container_name=${container_name:-${user}_env}
 
     # We home the users dir at the container name path 
     # locally so the same user can have multiple
@@ -68,7 +64,7 @@ function start_container {
     #
     # Check to see if already running
     #
-    if current_state=$(docker inspect $container_name --format '{{.State.Status}}') 2>&1 >/dev/null
+    if current_state=$(docker inspect $container_name --format '{{.State.Status}}'  2>&1 >/dev/null)
     then
         if [ "$current_state" == "running" ]
         then
@@ -223,6 +219,23 @@ function upgrade_containers {
     done
 }
 
+function connect {
+
+    container_name=$1
+    user_name=$USER
+
+    [[ -n "$2" ]] && user_name=$2
+
+    if port=$(docker port $container_name 22)
+    then
+        port=$(echo $port | awk 'BEGIN {FS=":"};{print $2}')
+        ssh -a -p $port $user_name@localhost
+    else
+        exit 1
+    fi
+
+}
+
 
 case $command in
 
@@ -238,11 +251,16 @@ case $command in
     upgrade_containers
     ;;
 
+  connect)
+    connect $1 $2
+    ;;
+   
   *)
     printf "Usage: docker-env [command]\nCommands:\n"
     printf "\tbuild - build new container\n"
     printf "\tcreate [username] [container-name, default=user_env] - create new continer for user, with optional name]\n"
     printf "\tupgrade - rebuild and restart all containers not on current version\n"
+    printf "\tconnect [container-name]\n"- connect to a running container
     exit 1
     ;;
 esac
