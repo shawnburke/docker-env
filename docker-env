@@ -87,10 +87,10 @@ function start_container {
     #
     # Set up the users home dir if it doesn't exist already
     #
-    if ! ls $user_home >/dev/null
+    if [[ ! -d $user_home ]]
     then
         mkdir -p $user_home
-        cp /etc/skel/.* $user_home
+        cp /etc/skel/. $user_home/
     fi
 
     #
@@ -222,7 +222,8 @@ function upgrade_containers {
 function connect {
 
     container_name=$1
-    user_name=$USER
+    user_name=$2
+    user_name=${user_name:-$USER}
 
     [[ -n "$2" ]] && user_name=$2
 
@@ -243,7 +244,7 @@ case $command in
     do_build
     ;;
 
-  start)
+  start|create)
     start_container $1 $2 $3
     ;;
 

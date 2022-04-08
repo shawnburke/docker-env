@@ -3,20 +3,20 @@
 # Licensed under the MIT License. See LICENSE in the project root for license information.
 #-----------------------------------------------------------------------------------------
 
-FROM golang:latest
+FROM codercom/enterprise-intellij:ubuntu
 
+USER root
 
 # Verify git, process tools installed
 RUN apt-get update
 
 # Install: git, jq, sqlite, python
 RUN apt-get -yq install sudo git jq procps ftp sqlite3 netcat
-RUN apt-get -yq install build-essential tzdata python-pip ffmpeg openssh-server
+RUN apt-get -yq install build-essential tzdata python3-pip ffmpeg openssh-server
 
 ## Add other prereqs here
 # RUN apt-get -yq install some-package
 
-RUN pip install amcrest
 
 ## Setup Node
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -y nodejs
@@ -30,6 +30,27 @@ RUN npm install -g browserify watchify yarn
 RUN apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+
+
+# # Install IntelliJ stuff
+
+# # Run everything as root
+# # USER root
+
+# # Packages required for multi-editor support
+# RUN apt-get install -yq \
+#     libxtst6 \
+#     libxrender1 \
+#     libfontconfig1 \
+#     libxi6 \
+#     libgtk-3-0
+
+# # Install intellij
+# RUN mkdir -p /opt/idea
+# RUN curl -L "https://download.jetbrains.com/product?code=IIC&latest&distribution=linux" | tar -C /opt/idea --strip-components 1 -xzvf -
+
+# # Add a binary to the PATH that points to the intellij startup script.
+# RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
 
 
 
