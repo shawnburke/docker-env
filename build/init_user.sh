@@ -8,11 +8,12 @@ then
 	exit 1
 fi
 
-if ! useradd  $1
+if cat /etc/passwd | grep -oE "^$1:" < /dev/null
 then
 	echo "User exists"
 	exit 0
 else
+  useradd $1nc 
   usermod -aG sudo $1
 fi
 

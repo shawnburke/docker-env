@@ -1,44 +1,4 @@
-FROM ubuntu:20.04
-
-SHELL ["/bin/bash", "-c"]
-
-USER root
-
-# Install baseline packages
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
-      bash \
-      build-essential \
-      ca-certificates \
-      curl \
-      docker.io \
-      htop \
-      locales \
-      man \
-      python3 \
-      python3-pip \
-      software-properties-common \
-      sudo \
-      systemd \
-      systemd-sysv \
-      unzip \
-      jq \
-      git jq procps ftp sqlite3 netcat \
-      tzdata openssh-server \
-      libxtst6 libxrender1 libxi6 libgtk-3-0 libfontconfig1 \
-      vim \
-      wget && \
-    # Install latest Git using their official PPA
-    add-apt-repository ppa:git-core/ppa && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --yes git
-
-# Enables Docker starting with systemd
-RUN systemctl enable docker
-
-# Add docker-compose
-RUN curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-RUN chmod +x /usr/local/bin/docker-compose
-
+from docker-env-base:local
 
 
 ## Setup Node
@@ -159,11 +119,4 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 LABEL docker-env=true
 ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
-COPY init_user.sh /root
-COPY entrypoint.sh /root
 
-EXPOSE 22
-
-ENV ENV_USER=""
-
-CMD ["/root/entrypoint.sh"]

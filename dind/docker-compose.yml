@@ -1,0 +1,34 @@
+version: "3"
+
+services:
+
+  dind:
+    image: docker:dind
+    privileged: true
+    expose:
+      - 2375
+      - 2376
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    volumes:
+      - "./image-cache:/var/lib/docker/overlay2"
+
+  user:
+    image: docker-env-base:local
+    container_name: dind-USERNAME_TO_REPLACE
+    build:
+      context: ../build/
+      dockerfile: Dockerfile-base
+    ports:
+      - "50022:22"
+      - "50088:8080"
+    environment:
+      DOCKER_HOST: tcp://dind:2375
+      ENV_USER: USERNAME_TO_REPLACE
+      ENV_USER_PASSWORD: USERNAME_TO_REPLACElinux
+    volumes:
+      - "USERNAME_TO_REPLACE-volume:/home/shawn"
+      # - "pubkey:/tmp/pubkey"
+volumes:
+  USERNAME_TO_REPLACE-volume:
+
