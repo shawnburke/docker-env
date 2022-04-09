@@ -48,6 +48,6 @@ chown -R $1:$1 $homedir/.ssh
 
 # HACK: set password async because it 
 # fails if done during entry point
-bash -c "sleep 1; printf '$password\n$password' | passwd shawn; echo 'passwd set'" &
+bash -c "sleep 1; printf \"$password\n$password\" | passwd shawn; echo \"passwd set to $password\"" &
 
 
