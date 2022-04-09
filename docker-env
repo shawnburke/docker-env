@@ -98,7 +98,7 @@ function start_container {
     # into the newly created containers authorized_keys file,
     # which allows enabling private-key access by default.
     #
-    if [ -f ~/.ssh/id_rsa.pub ]
+    if [[ -f ~/.ssh/id_rsa.pub && ! -f $user_home/.ssh/authorized_keys ]]
     then
         pubkey=$(cat ~/.ssh/id_rsa.pub)
         if ! grep "$pubkey" $user_home/.ssh/authorized_keys >/dev/null
