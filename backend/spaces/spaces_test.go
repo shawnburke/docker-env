@@ -9,10 +9,10 @@ import (
 )
 
 func TestWriteFiles(t *testing.T) {
-	pwd, err := os.Getwd()
-	require.NoError(t, err)
-	dir := path.Join(pwd, ".tmp", "docker-env")
-	err = os.MkdirAll(dir, os.ModeDir|os.ModePerm)
+	// pwd, err := os.Getwd()
+	// require.NoError(t, err)
+	dir := path.Join(os.TempDir(), ".tmp", "docker-env")
+	err := os.MkdirAll(dir, os.ModeDir|os.ModePerm)
 	require.NoError(t, err)
 
 	s := NewSpace{
