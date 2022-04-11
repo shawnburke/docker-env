@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 
@@ -27,6 +28,8 @@ func New(manager spaces.Manager) http.Handler {
 		manager: manager,
 	}
 
+	r.Use(loggingMiddleware)
+
 	spaces := r.PathPrefix("/spaces").Subrouter()
 	spaces.HandleFunc("/{user}", ret.createSpace).Methods("POST")
 	spaces.HandleFunc("/{user}", ret.listSpaces).Methods("GET")
@@ -34,6 +37,15 @@ func New(manager spaces.Manager) http.Handler {
 	spaces.HandleFunc("/{user}/{name}", ret.removeSpace).Methods("DELETE")
 
 	return ret
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Do stuff here
+		log.Println(r.Method, r.RequestURI)
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
 }
 
 type createSpaceRequest struct {
@@ -46,7 +58,6 @@ type createSpaceRequest struct {
 func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	user := vars["user"]
-	fmt.Printf("POST /spaces/%s", user)
 
 	csr := &createSpaceRequest{}
 
@@ -111,6 +122,12 @@ func (r *router) listSpaces(w http.ResponseWriter, req *http.Request) {
 
 	instances, err := r.manager.List(user)
 
+	if err != nil {
+		w.Write([]byte(fmt.Sprintf("error getting: %v", err)))
+		w.WriteHeader(500)
+		return
+	}
+
 	raw, err := json.Marshal(instances)
 
 	if err != nil {
@@ -121,7 +138,6 @@ func (r *router) listSpaces(w http.ResponseWriter, req *http.Request) {
 
 	w.Write(raw)
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(200)
 }
 
 func (r *router) getSpace(w http.ResponseWriter, req *http.Request) {

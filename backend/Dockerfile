@@ -1,13 +1,14 @@
 FROM golang:1.18.0-alpine3.15
 
 
-RUN apk update && \
-    apk add --no-cache docker-cli python3 && \
-    apk add --no-cache --virtual .docker-compose-deps python3-dev libffi-dev openssl-dev gcc libc-dev make && \
-    pip3 install docker-compose && \
-    apk del .docker-compose-deps
+RUN apk update
+RUN apk add --no-cache  --update docker-cli python3  python3-dev libffi-dev openssl-dev gcc libc-dev make docker-compose
 
 WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
 
 COPY . .
 

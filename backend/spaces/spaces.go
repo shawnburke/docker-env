@@ -191,12 +191,16 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 func (dcm *dockerComposeManager) List(user string) ([]Instance, error) {
 
 	dir := path.Join(dcm.rootDir(), user)
+	instances := []Instance{}
 
 	files, err := ioutil.ReadDir(dir)
 
-	instances := []Instance{}
+	if os.IsNotExist(err) {
+		return instances, nil
+	}
+
 	if err != nil {
-		return nil, err
+		return instances, err
 	}
 
 	for _, f := range files {

@@ -1,3 +1,8 @@
 #! /bin/bash
 
+tag=docker-env-server:local
+if ! docker inspect $tag 2>&1 >/dev/null
+then
+    docker build -t $tag .
+fi
 docker run -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
