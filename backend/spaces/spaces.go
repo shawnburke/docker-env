@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -48,7 +49,7 @@ type Manager interface {
 
 func New(dir string) Manager {
 	return &dockerComposeManager{
-		root: dir,
+		root: path.Join(dir, "spaces"),
 	}
 }
 
@@ -98,13 +99,15 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 	}
 
 	space.Root = dcm.rootDir()
+	log.Printf("Creating space %s for user %s at %s\n:%+v", space.Name, space.User, space.Root, space)
+
 	err := createSpaceFiles(dir, space)
 	if err != nil {
 		return false, err.Error(), err
 	}
 	output := &bytes.Buffer{}
 
-	// start docker compose!
+	log.Printf("Starting space")
 	cmd := exec.Command("docker-compose", "up", "-d")
 	cmd.Dir = dir
 	cmd.Stdout = output
@@ -112,6 +115,11 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 
 	err = cmd.Run()
 
+	if err == nil {
+		log.Printf("Successfully started %s", key)
+	} else {
+		log.Printf("Failed to start: %v", err)
+	}
 	return err == nil, output.String(), err
 }
 
@@ -313,6 +321,14 @@ func createSpaceFiles(dir string, space NewSpace) error {
 	if err != nil {
 		return err
 	}
+
+	if space.PubKey != "" {
+		err = ioutil.WriteFile(path.Join(dir, "pubkey"), []byte(space.PubKey), os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
 	// write it
 	return ioutil.WriteFile(path.Join(dir, "docker-compose.yml"), []byte(b), os.ModePerm)
 
@@ -367,7 +383,7 @@ services:
             ENV_USER_PASSWORD: "{{.Password}}"
         volumes:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
-            {{ if .PubKey }}- "pubkey:/tmp/pubkey"{{ end }}
+            {{ if .PubKey }}- "./pubkey:/tmp/pubkey"{{ end }}
 volumes:
   {{.User}}-{{.Name}}-volume:
 

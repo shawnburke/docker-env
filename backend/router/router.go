@@ -52,7 +52,7 @@ type createSpaceRequest struct {
 	User     string `json:"user"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
-	PubKey   string `json:"pub_key"`
+	PubKey   string `json:"pubkey"`
 }
 
 func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
@@ -63,15 +63,15 @@ func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		w.Write([]byte(err.Error()))
 		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
 	err = json.Unmarshal(body, csr)
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Can't unmarshal: %v\n%s"+err.Error(), string(body))))
 		w.WriteHeader(400)
+		w.Write([]byte(fmt.Sprintf("Can't unmarshal: %v\n%s"+err.Error(), string(body))))
 		return
 	}
 
@@ -90,29 +90,29 @@ func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err != nil || !success {
+		w.WriteHeader(500)
 		w.Write([]byte(fmt.Sprintf("Error creating: %v\n", err)))
 		w.Write([]byte(output))
-		w.WriteHeader(500)
 		return
 	}
 
 	instance, err := r.manager.Get(csr.User, csr.Name, false)
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error getting after create: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error getting after create: %v", err)))
 		return
 	}
 
 	raw, err := json.Marshal(instance)
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		return
 	}
+	w.WriteHeader(201)
+	w.Header().Add("Location", fmt.Sprintf("http://localhost:%v/spaces/%s/%s", 3000, user, csr.Name))
 	w.Write(raw)
 
-	w.Header().Add("Location", fmt.Sprintf("http://localhost:%v/spaces/%s/%s", 3000, user, csr.Name))
-	w.WriteHeader(201)
 }
 
 func (r *router) listSpaces(w http.ResponseWriter, req *http.Request) {
@@ -123,16 +123,16 @@ func (r *router) listSpaces(w http.ResponseWriter, req *http.Request) {
 	instances, err := r.manager.List(user)
 
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("error getting: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("error getting: %v", err)))
 		return
 	}
 
 	raw, err := json.Marshal(instances)
 
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		return
 	}
 
@@ -154,22 +154,22 @@ func (r *router) getSpace(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		return
 	}
 
 	raw, err := json.Marshal(instance)
 
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
 		return
 	}
 
-	w.Write(raw)
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(200)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(raw)
 }
 
 func (r *router) removeSpace(w http.ResponseWriter, req *http.Request) {
@@ -184,6 +184,4 @@ func (r *router) removeSpace(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(404)
 		return
 	}
-
-	w.WriteHeader(200)
 }

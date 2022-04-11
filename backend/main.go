@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/shawnburke/docker-env/backend/router"
@@ -31,6 +32,9 @@ func main() {
 	if env := os.Getenv("DIR"); env != "" {
 		dir = env
 	}
+
+	dir = path.Join(dir, ".spaces")
+	os.MkdirAll(dir, os.ModeDir|os.ModePerm)
 
 	manager := spaces.New(dir)
 	mux := router.New(manager)

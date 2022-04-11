@@ -38,9 +38,9 @@ fi
 # host machine can securely SSH in for same user
 cd $homedir
 mkdir -p $homedir/.ssh
-if [[ -f /tmp/${u}_pubkey && ! -f $homedir/.ssh/authorized_keys ]]
+if [[ -f /tmp/pubkey && ! -f $homedir/.ssh/authorized_keys ]]
 then
-	cat /tmp/${u}_pubkey >> $homedir/.ssh/authorized_keys
+	cat /tmp/pubkey >> $homedir/.ssh/authorized_keys
 	chmod 600 .ssh/authorized_keys
 fi
 
@@ -48,6 +48,6 @@ chown -R $1:$1 $homedir
 
 # HACK: set password async because it 
 # fails if done during entry point
-bash -c "sleep 1; printf \"$password\n$password\" | passwd shawn; echo \"passwd set to $password\"" &
+bash -c "sleep 1; printf \"$password\n$password\" | passwd $u; echo \"passwd set to $password\"" &
 
 
