@@ -53,6 +53,7 @@ type createSpaceRequest struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	PubKey   string `json:"pubkey"`
+	Image    string `json:"image"`
 }
 
 func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
@@ -80,26 +81,20 @@ func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
 		Name:     csr.Name,
 		PubKey:   csr.PubKey,
 		Password: csr.Password,
+		Image:    csr.Image,
 	}
 
-	success, output, err := r.manager.Create(s)
+	instance, output, err := r.manager.Create(s)
 
 	if os.IsExist(err) {
 		w.WriteHeader(409)
 		return
 	}
 
-	if err != nil || !success {
+	if err != nil {
 		w.WriteHeader(500)
 		w.Write([]byte(fmt.Sprintf("Error creating: %v\n", err)))
 		w.Write([]byte(output))
-		return
-	}
-
-	instance, err := r.manager.Get(csr.User, csr.Name, false)
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("Error getting after create: %v", err)))
 		return
 	}
 

@@ -14,7 +14,7 @@ class DockerEnvClient(object):
         self.host = args.host
         self.port = args.port
         self.hostport = f'{args.host}:{args.port}'
-        self.user = os.environ["USER"]
+        self.user = args.user
         self.headers_list = {
             "Accept": "application/json",
             "Content-Type": "application/json"
@@ -58,12 +58,15 @@ class DockerEnvClient(object):
         finally:
             conn.close()
 
-    def create(self, name, password=None, pubkey_path=None):
+    def create(self, name, password=None, pubkey_path=None, image=None):
         opts = {
             "user": self.user,
             "name": name,
             "password": password,
         }
+
+        if image:
+            opts["image"] = image
 
         
         # load the pubkey
@@ -177,48 +180,59 @@ class DockerEnvClient(object):
 
 if __name__ == '__main__':
 
+    host=os.environ.get("HOST", "localhost")
+    port=os.environ.get("PORT", 3001)
+  
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='docker-env')
-    parser.add_argument('--host', action='store', default="localhost",
-                        help='docker_env host')
-    parser.add_argument('--port', action='store', default=3001,
-                        help='docker_env host')
+    parser.add_argument('--host', action='store', default=host,
+                        help='Server hostname')
+    parser.add_argument('--port', action='store', default=port,
+                        help='Port to contact server')
+    parser.add_argument('--user', dest="user", action='store', default=os.environ["USER"],
+                        help='Username to use')
 
     # create sub-parser
     sub_parsers = parser.add_subparsers(
         help='command help', dest="command_name")
 
+    #
+    # CREATE Space
+    #
     parser_create = sub_parsers.add_parser(
-        'create', help='create new environment')
+        'create', help='create new instance')
     parser_create.add_argument(
-        dest='create_name', nargs='?', help='instance_name')
+        dest='create_name', nargs="?", help='Name of instance to create')
     parser_create.add_argument(
         '--password', dest="create_password", help='instance password, required if no pubkey avaiable')
     parser_create.add_argument(
         '--pubkey', dest="create_pubkey_path", help='pubkey path',default=f'{os.environ["HOME"]}/.ssh/id_rsa.pub')
+    parser_create.add_argument(
+        '--image', dest="create_image", help='instance image. Must have SSH avaialble over port 22.')
+    
 
 
     parser_ls = sub_parsers.add_parser(
-        'ls', help='list current enviornments')
+        'ls', help='list current instances')
 
     parser_info = sub_parsers.add_parser(
-        'info', help='list current enviornments')
+        'info', help='get instance detail')
     parser_info.add_argument(
-        dest='info_name', nargs='?', help='instance_name')
+        dest='info_name', nargs='?', help='name of instance')
 
     parser_destroy = sub_parsers.add_parser(
         'destroy', help='destroy an instance')
     parser_destroy.add_argument(
-        dest='destroy_name', nargs='?', help='name to destroy')
+        dest='destroy_name', nargs='?', help='name to instance to destroy')
 
 
     parser_ssh = sub_parsers.add_parser(
         'ssh', help='open a command prompt to the instance')
-    parser_ssh.add_argument(dest='ssh_name', nargs='?', help='instance_name')
+    parser_ssh.add_argument(dest='ssh_name', nargs='?', help='name of instance')
 
     parser_tunnel = sub_parsers.add_parser(
         'tunnel', help='list current enviornments')
-    parser_tunnel.add_argument(dest='tunnel_name', nargs='?', help='instance name')
+    parser_tunnel.add_argument(dest='tunnel_name', nargs='?', help='name of instance')
 
 
     args = parser.parse_args()
@@ -228,7 +242,7 @@ if __name__ == '__main__':
     if args.command_name == 'ls':
         cli.list()
     elif args.command_name == 'create':
-        cli.create(args.create_name, args.create_password, args.create_pubkey_path)
+        cli.create(args.create_name, password=args.create_password, pubkey_path=args.create_pubkey_path, image=args.create_image)
     elif args.command_name == 'info':
         cli.get(args.info_name)
     elif args.command_name == 'destroy':

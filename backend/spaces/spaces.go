@@ -41,24 +41,46 @@ type Instance struct {
 	ContainerStats ContainerStats `json:"container_stats,omitempty"`
 }
 type Manager interface {
-	Create(space NewSpace) (bool, string, error)
+	Create(space NewSpace) (*Instance, string, error)
 	List(user string) ([]Instance, error)
 	Get(user, name string, stats bool) (Instance, error)
 	Stop(user, name string) error
 	Kill(user, name string) error
 }
 
+const DefaultImageName = "docker-env-base:local"
+const dockerComposeYml = "docker-compose.yml"
+
+var spaceNames = []string{
+	"grover",
+	"elmo",
+	"bert",
+	"ernie",
+	"cookie",
+	"bigbird",
+	"count",
+}
+
 func New(dir string) Manager {
+
+	defaultImage := DefaultImageName
+
+	if env := os.Getenv("DEFAULT_IMAGE"); env != "" {
+		defaultImage = env
+	}
+
 	return &dockerComposeManager{
-		root:  dir,
-		uroot: path.Join(dir, "spaces"),
+		root:         dir,
+		uroot:        path.Join(dir, "spaces"),
+		defaultImage: defaultImage,
 	}
 }
 
 type dockerComposeManager struct {
-	root  string
-	uroot string
-	cli   *client.Client
+	root         string
+	uroot        string
+	cli          *client.Client
+	defaultImage string
 }
 
 func (dcm *dockerComposeManager) client() (*client.Client, error) {
@@ -81,7 +103,28 @@ func (dcm *dockerComposeManager) userRoot() string {
 	return dcm.uroot
 }
 
-func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
+func (dcm *dockerComposeManager) pickName(user string) string {
+
+	for _, n := range spaceNames {
+
+		p := path.Join(dcm.userRoot(), user, n, dockerComposeYml)
+
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			return n
+		}
+	}
+	return ""
+}
+
+func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, error) {
+
+	if space.Name == "" {
+		space.Name = dcm.pickName(space.User)
+	}
+
+	if space.Name == "" {
+		return nil, "Failed to pick name", fmt.Errorf("No name was provided, all default names are in use.")
+	}
 
 	key := fmt.Sprintf("%s/%s", space.User, space.Name)
 
@@ -93,7 +136,7 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 		instance, err := dcm.Get(space.User, space.Name, false)
 
 		if err == nil && instance.Name == space.Name {
-			return true, "", os.ErrExist
+			return &instance, "", os.ErrExist
 		}
 	}
 
@@ -101,9 +144,25 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 	space.Root = dcm.root
 	log.Printf("Creating space %s for user %s at %s\n:%+v", space.Name, space.User, space.UserRoot, space)
 
-	err := createSpaceFiles(dir, space)
+	if space.Image == "" {
+		space.Image = dcm.defaultImage
+	}
+
+	// make sure the image exists
+	cli, err := dcm.client()
 	if err != nil {
-		return false, err.Error(), err
+		return nil, err.Error(), fmt.Errorf("Error getting client: %v", err)
+	}
+
+	_, _, err = cli.ImageInspectWithRaw(context.Background(), space.Image)
+
+	if err != nil {
+		return nil, "Can not find image " + space.Image, err
+	}
+
+	err = createSpaceFiles(dir, space)
+	if err != nil {
+		return nil, err.Error(), err
 	}
 	output := &bytes.Buffer{}
 
@@ -115,12 +174,20 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 
 	err = cmd.Run()
 
-	if err == nil {
-		log.Printf("Successfully started %s", key)
-	} else {
-		log.Printf("Failed to start: %v", err)
+	if err != nil {
+		log.Printf("Failed to start: %v\n%v", err, output)
+		return nil, output.String(), err
 	}
-	return err == nil, output.String(), err
+
+	log.Printf("Successfully started %s", key)
+
+	i, err := dcm.Get(space.User, space.Name, false)
+
+	if err != nil {
+		return nil, err.Error(), err
+	}
+
+	return &i, output.String(), nil
 }
 
 type ContainerStats struct {
@@ -160,7 +227,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	}
 
 	// make sure there is a dc file in there
-	stat, err := os.Stat(path.Join(dcm.userRoot(), user, name, "docker-compose.yml"))
+	stat, err := os.Stat(path.Join(dcm.userRoot(), user, name, dockerComposeYml))
 
 	if err != nil || stat.IsDir() {
 		return Instance{}, os.ErrNotExist
@@ -280,16 +347,6 @@ func (dcm *dockerComposeManager) Kill(user string, name string) error {
 
 }
 
-var spaceNames = []string{
-	"grover",
-	"cookie",
-	"count",
-	"bert",
-	"ernie",
-	"bigbird",
-	"elmo",
-}
-
 func createSpaceFiles(dir string, space NewSpace) error {
 
 	if space.SshPort == 0 {
@@ -308,9 +365,6 @@ func createSpaceFiles(dir string, space NewSpace) error {
 		space.VsCodePort = port
 	}
 
-	if space.Image == "" {
-		space.Image = "docker-env-base:local"
-	}
 	// create the dir
 	err := os.MkdirAll(dir, os.ModeDir|os.ModePerm)
 	if err != nil {
@@ -330,7 +384,7 @@ func createSpaceFiles(dir string, space NewSpace) error {
 	}
 
 	// write it
-	return ioutil.WriteFile(path.Join(dir, "docker-compose.yml"), []byte(b), os.ModePerm)
+	return ioutil.WriteFile(path.Join(dir, dockerComposeYml), []byte(b), os.ModePerm)
 
 }
 
