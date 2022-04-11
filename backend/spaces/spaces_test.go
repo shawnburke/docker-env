@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteFiles(t *testing.T) {
+func TestWriteFiles(t testing.T) {
 	// pwd, err := os.Getwd()
 	// require.NoError(t, err)
 	dir := path.Join(os.TempDir(), ".tmp", "docker-env")

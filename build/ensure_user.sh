@@ -24,7 +24,7 @@ else
   usermod -aG sudo $u
   usermod -s /bin/bash $u
 
-  [[ -d /etc/skel && ! -f $homedir/.bashrc ]] && cp -r /etc/skel/.* $homedir
+  [[ -d /etc/skel && ! -f $homedir/.bashrc ]] && cp /etc/skel/.* $homedir
 fi
 
 password=$u
@@ -44,7 +44,7 @@ then
 	chmod 600 .ssh/authorized_keys
 fi
 
-chown -R $1:$1 $homedir/.ssh
+chown -R $1:$1 $homedir
 
 # HACK: set password async because it 
 # fails if done during entry point

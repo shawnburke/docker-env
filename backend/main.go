@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/shawnburke/docker-env/backend/router"
+	"github.com/shawnburke/docker-env/backend/spaces"
 )
 
 func main() {
@@ -21,7 +22,19 @@ func main() {
 		port = int(p)
 	}
 
-	mux := router.New()
+	dir, err := os.Getwd()
+
+	if err != nil {
+		panic(err)
+	}
+
+	if env := os.Getenv("DIR"); env != "" {
+		dir = env
+	}
+
+	manager := spaces.New(dir)
+	mux := router.New(manager)
 	fmt.Println("Starting server on port: ", port)
+	fmt.Println("Using dir: ", dir)
 	http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), mux)
 }

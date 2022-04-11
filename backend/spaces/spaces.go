@@ -3,6 +3,7 @@ package spaces
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/phayes/freeport"
@@ -25,18 +27,21 @@ type NewSpace struct {
 	PubKey     string
 	SshPort    int
 	VsCodePort int
+	Root       string
 }
 
 type Instance struct {
-	User       string
-	Name       string
-	SshPort    int
-	VsCodePort int
-	Status     string
+	User           string         `json:"user"`
+	Name           string         `json:"name"`
+	SshPort        int            `json:"ssh_port"`
+	VsCodePort     int            `json:"vscode_port"`
+	Status         string         `json:"status"`
+	ContainerStats ContainerStats `json:"container_stats,omitempty"`
 }
 type Manager interface {
 	Create(space NewSpace) (bool, string, error)
 	List(user string) ([]Instance, error)
+	Get(user, name string, stats bool) (Instance, error)
 	Stop(user, name string) error
 	Kill(user, name string) error
 }
@@ -84,26 +89,103 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 
 	// todo check if running
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		return true, "", nil
+
+		instance, err := dcm.Get(space.User, space.Name, false)
+
+		if err == nil && instance.Name == space.Name {
+			return true, "", os.ErrExist
+		}
 	}
 
+	space.Root = dcm.rootDir()
 	err := createSpaceFiles(dir, space)
+	if err != nil {
+		return false, err.Error(), err
+	}
 	output := &bytes.Buffer{}
 
 	// start docker compose!
-	cmd := exec.Command("docker", "compose", "up", "-d")
+	cmd := exec.Command("docker-compose", "up", "-d")
 	cmd.Dir = dir
 	cmd.Stdout = output
 	cmd.Stderr = output
 
 	err = cmd.Run()
 
-	// cli, err := client.NewClientWithOpts(client.FromEnv)
-
-	// if err != nil {
-	// 	return false, err
-	// }
 	return err == nil, output.String(), err
+}
+
+type ContainerStats struct {
+	MemoryStats types.MemoryStats `json:"memory_stats"`
+	CpuStats    types.CPUStats    `json:"cpu_stats"`
+}
+
+func (dcm *dockerComposeManager) stats(user, name string) (*ContainerStats, error) {
+
+	key := fmt.Sprintf("space-%s-%s", user, name)
+
+	cli, err := dcm.client()
+	if err != nil {
+		return nil, err
+	}
+	s, err := cli.ContainerStats(context.Background(), key, false)
+	if err != nil {
+		return nil, err
+	}
+
+	defer s.Body.Close()
+	body, err := ioutil.ReadAll(s.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	cs := ContainerStats{}
+	err = json.Unmarshal(body, &cs)
+	return &cs, err
+}
+
+func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, error) {
+
+	i := &Instance{
+		User: user,
+		Name: name,
+	}
+
+	// make sure there is a dc file in there
+	stat, err := os.Stat(path.Join(dcm.root, user, name, "docker-compose.yml"))
+
+	if err != nil || stat.IsDir() {
+		return Instance{}, os.ErrNotExist
+	}
+
+	// check status
+	cli, err := dcm.client()
+	if err != nil {
+		return Instance{}, err
+	}
+
+	key := fmt.Sprintf("space-%s-%s", i.User, i.Name)
+	j, err := cli.ContainerInspect(context.Background(), key)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error inspecting %q: %v", key, err)
+		return Instance{}, err
+	}
+
+	i.Status = j.State.Status
+
+	i.SshPort = getPort(22, j.NetworkSettings.Ports)
+	i.VsCodePort = getPort(8080, j.NetworkSettings.Ports)
+
+	if stats {
+		s, err := dcm.stats(user, name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting stats: %v", err)
+		} else {
+			i.ContainerStats = *s
+		}
+	}
+
+	return *i, nil
 }
 
 func (dcm *dockerComposeManager) List(user string) ([]Instance, error) {
@@ -122,37 +204,18 @@ func (dcm *dockerComposeManager) List(user string) ([]Instance, error) {
 			continue
 		}
 
-		i := Instance{
-			User: user,
-			Name: f.Name(),
-		}
+		i, err := dcm.Get(user, f.Name(), false)
 
-		// make sure there is a dc file in there
-		stat, err := os.Stat(path.Join(dir, f.Name(), "docker-compose.yaml"))
-
-		if err != nil || stat.IsDir() {
+		if os.IsNotExist(err) {
 			continue
 		}
 
-		// check status
-		cli, err := dcm.client()
 		if err != nil {
-			return nil, err
+			fmt.Fprintf(os.Stderr, "Error getting instance %s.%s: %v", user, f.Name(), err)
+			continue
 		}
-
-		key := fmt.Sprintf("space-%s-%s", i.User, i.Name)
-		j, err := cli.ContainerInspect(context.Background(), key)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error inspecting %q: %v", key, err)
-		}
-
-		i.Status = j.State.Status
-
-		i.SshPort = getPort(22, j.NetworkSettings.Ports)
-		i.VsCodePort = getPort(8080, j.NetworkSettings.Ports)
 
 		instances = append(instances, i)
-
 	}
 
 	return instances, nil
@@ -181,7 +244,28 @@ func (dcm *dockerComposeManager) Stop(user string, name string) error {
 }
 
 func (dcm *dockerComposeManager) Kill(user string, name string) error {
-	panic("not implemented") // TODO: Implement
+	i, err := dcm.Get(user, name, false)
+
+	if err != nil {
+		return err
+	}
+
+	dir := path.Join(dcm.root, i.User, i.Name)
+
+	output := &bytes.Buffer{}
+
+	cmd := exec.Command("docker-compose", "down")
+	cmd.Dir = dir
+	cmd.Stdout = output
+	cmd.Stderr = output
+	err = cmd.Run()
+
+	if err != nil {
+		return err
+	}
+
+	return os.RemoveAll(dir)
+
 }
 
 var spaceNames = []string{
@@ -254,7 +338,8 @@ services:
 
     {{.User}}-{{.Name}}-dind:
         image: docker:dind
-        container_name: dind-{{.User}}-{{.Name}}
+        restart: unless-stopped
+        container_name: "dind-{{.User}}-{{.Name}}"
         privileged: true
         expose:
             - 2375
@@ -262,18 +347,20 @@ services:
         environment:
             - DOCKER_TLS_CERTDIR=
         volumes:
-            - "./image-cache:/var/lib/docker/overlay2"
+            - "{{.Root}}/image-cache:/var/lib/docker/overlay2"
 
     {{.User}}-{{.Name}}-space:
         image: {{.Image}}
-        container_name: space-{{.User}}-{{.Name}}
+        restart: unless-stopped
+        hostname: "{{.User}}-{{.Name}}"
+        container_name: "space-{{.User}}-{{.Name}}"
         ports:
             - "{{.SshPort}}:22"
             - "{{.VsCodePort}}:8080"
         environment:
-            DOCKER_HOST: tcp://dind:2375
-            ENV_USER: {{.User}}
-            ENV_USER_PASSWORD: {{.Password}}
+            DOCKER_HOST: "tcp://{{.User}}-{{.Name}}-dind:2375"
+            ENV_USER: "{{.User}}"
+            ENV_USER_PASSWORD: "{{.Password}}"
         volumes:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
             {{ if .PubKey }}- "pubkey:/tmp/pubkey"{{ end }}
