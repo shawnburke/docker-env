@@ -114,6 +114,14 @@ class DockerEnvClient(object):
         if status_code == 200:
             print(f'Instance {instance["name"]} is {instance["status"]}')
             print(f'\tSSH Port: {instance["ssh_port"]}')
+            print(f'\tVSCode Port: {instance["vscode_port"]}')
+            print(f'')
+            stats = instance.get('container_stats', {})
+            mem = stats["memory_stats"]["usage"]
+            print(f'\tMemory: {mem / (1024*1024)}mb')
+            cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
+            print(f'\tCPU: {cpu / 1000000000} cores')
+
         elif status_code == 404:
             print("Can't find an instance of that name.")
         else:

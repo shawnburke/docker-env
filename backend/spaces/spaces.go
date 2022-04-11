@@ -29,6 +29,7 @@ type NewSpace struct {
 	SshPort    int
 	VsCodePort int
 	Root       string
+	UserRoot   string
 }
 
 type Instance struct {
@@ -49,13 +50,15 @@ type Manager interface {
 
 func New(dir string) Manager {
 	return &dockerComposeManager{
-		root: path.Join(dir, "spaces"),
+		root:  dir,
+		uroot: path.Join(dir, "spaces"),
 	}
 }
 
 type dockerComposeManager struct {
-	root string
-	cli  *client.Client
+	root  string
+	uroot string
+	cli   *client.Client
 }
 
 func (dcm *dockerComposeManager) client() (*client.Client, error) {
@@ -71,22 +74,18 @@ func (dcm *dockerComposeManager) client() (*client.Client, error) {
 	return dcm.cli, nil
 }
 
-func (dcm *dockerComposeManager) rootDir() string {
-	if dcm.root != "" {
-		return dcm.root
+func (dcm *dockerComposeManager) userRoot() string {
+	if dcm.uroot == "" {
+		panic("no root set")
 	}
-	pwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return pwd
+	return dcm.uroot
 }
 
 func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 
 	key := fmt.Sprintf("%s/%s", space.User, space.Name)
 
-	dir := path.Join(dcm.rootDir(), key)
+	dir := path.Join(dcm.userRoot(), key)
 
 	// todo check if running
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
@@ -98,8 +97,9 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (bool, string, error) {
 		}
 	}
 
-	space.Root = dcm.rootDir()
-	log.Printf("Creating space %s for user %s at %s\n:%+v", space.Name, space.User, space.Root, space)
+	space.UserRoot = dcm.userRoot()
+	space.Root = dcm.root
+	log.Printf("Creating space %s for user %s at %s\n:%+v", space.Name, space.User, space.UserRoot, space)
 
 	err := createSpaceFiles(dir, space)
 	if err != nil {
@@ -160,7 +160,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	}
 
 	// make sure there is a dc file in there
-	stat, err := os.Stat(path.Join(dcm.root, user, name, "docker-compose.yml"))
+	stat, err := os.Stat(path.Join(dcm.userRoot(), user, name, "docker-compose.yml"))
 
 	if err != nil || stat.IsDir() {
 		return Instance{}, os.ErrNotExist
@@ -198,7 +198,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 
 func (dcm *dockerComposeManager) List(user string) ([]Instance, error) {
 
-	dir := path.Join(dcm.rootDir(), user)
+	dir := path.Join(dcm.userRoot(), user)
 	instances := []Instance{}
 
 	files, err := ioutil.ReadDir(dir)
@@ -262,7 +262,7 @@ func (dcm *dockerComposeManager) Kill(user string, name string) error {
 		return err
 	}
 
-	dir := path.Join(dcm.root, i.User, i.Name)
+	dir := path.Join(dcm.userRoot(), i.User, i.Name)
 
 	output := &bytes.Buffer{}
 
