@@ -28,5 +28,10 @@ container_name=${@:$OPTIND:1}
 
 echo "Name: $container_name"
 
+if docker rm -f $container_name
+then
+  echo "Removed old container"
+fi
+
 docker run $args --name "$container_name" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
 

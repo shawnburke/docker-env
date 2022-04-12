@@ -126,7 +126,7 @@ class DockerEnvClient(object):
             ports = instance.get("ports", [])
             if ports is not None:
                 for p in ports:
-                    print(f'\t{port["label"]}: {port["port"]}')
+                    print(f'\t{p["label"]}: {p["port"]}')
             print(f'')
             stats = instance.get('container_stats', {})
             mem = stats["memory_stats"]["usage"]
