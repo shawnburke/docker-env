@@ -53,8 +53,10 @@ Connected SSH as localhost:35385
 
 Success! We've now connected!
 
-6. SSH to the instance `./docker-env ssh devbox`.  This will give you an SSH prompt.
+## Accessing the instance
 
-Here you can also run VSCode or JetBrains remote using the SSH access.  
+To SSH to the instance, run `./docker-env ssh devbox`.  This will give you an SSH prompt, and also print out the `ssh` command to access the instance, something like  `ssh -A -p 36385 user@localhost`.
+
+Here you can also run VSCode or JetBrains remote using the SSH access, just use your username and the SSH port reported for the instance.
 
 Enjoy!
