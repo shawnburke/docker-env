@@ -23,7 +23,10 @@ fi
 [[ -n "$rebuild" ]] && docker build -t $tag .
 
 
-container_name=$1
+container_name=${@:$OPTIND:1}
+[[ -z "$container_name" ]] && container_name=docker-env-server
 
-docker run $args --name "${container-name:-docker-env-server}" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+echo "Name: $container_name"
+
+docker run $args --name "$container_name" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
 

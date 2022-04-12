@@ -10,4 +10,4 @@ pushd backend
 ./start -r -d docker-env-server
 popd
 
-tail -f docker-end-server
+docker logs -f docker-env-server
