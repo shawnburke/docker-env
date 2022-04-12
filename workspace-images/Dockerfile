@@ -68,7 +68,10 @@ RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
 
 # Add VSCode-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
-COPY start-code-server.sh /usr/local/bin
+COPY start-code-server /usr/local/bin
+RUN chmod +x /usr/local/bin/start-code-server
+COPY install-projector /usr/local/bin
+RUN chmod +x /usr/local/bin/install-projector
 
 
 # Clean up
