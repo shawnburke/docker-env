@@ -160,7 +160,7 @@ class DockerEnvClient(object):
         if not ssh_target:
             ssh_target = f'{self.user}@localhost'
 
-        if port == 'ssh':
+        if port == 'ssh' or port is None:
             port = ssh_port
         elif port == 'vscode':
             port = instance["vscode_port"]
