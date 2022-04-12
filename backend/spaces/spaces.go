@@ -91,6 +91,7 @@ func (dcm *dockerComposeManager) client() (*client.Client, error) {
 			fmt.Fprintf(os.Stderr, "Error getting docker client: %v", err)
 			return nil, err
 		}
+		cli.NegotiateAPIVersion(context.Background())
 		dcm.cli = cli
 	}
 	return dcm.cli, nil
