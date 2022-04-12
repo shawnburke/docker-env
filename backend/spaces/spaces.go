@@ -283,17 +283,20 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 
 	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 
-	if raw_connect("0.0.0.0", 8080) {
+	vscport := getPort(8080, j.NetworkSettings.Ports)
+	if raw_connect("0.0.0.0", vscport) {
 		i.Ports = append(i.Ports, instancePort{
-			Port:    getPort(8080, j.NetworkSettings.Ports),
+			Port:    vscport,
 			Label:   "VSCode Browser",
 			Message: "Connect to VSCode browser at http://localhost:LOCAL_PORT",
 		})
 	}
 
-	if raw_connect("0.0.0.0", 9999) {
+	projport := getPort(9999, j.NetworkSettings.Ports)
+
+	if raw_connect("0.0.0.0", projport) {
 		i.Ports = append(i.Ports, instancePort{
-			Port:    getPort(9999, j.NetworkSettings.Ports),
+			Port:    projport,
 			Label:   "IntelliJ Projector",
 			Message: "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
 		})
@@ -485,7 +488,7 @@ services:
         ports:
             - "{{.SshPort}}:22"
             - "{{.VsCodePort}}:8080"
-	    - "{{.ProjectorPort}}:9999"
+            - "{{.ProjectorPort}}:9999"
         environment:
             DOCKER_HOST: "tcp://{{.User}}-{{.Name}}-dind:2375"
             ENV_USER: "{{.User}}"

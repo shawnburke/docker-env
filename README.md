@@ -1,69 +1,60 @@
-# Docker-based development env
+# Docker-Based Remote Servers
 
-Quick and dirty way to host docker-based development enviornments that can be accessed via SSH or VSCode remote.
+This is a toolset that allows running remote development environments via docker.
 
-This allows you to have multiple develoment enviornments running on a single machine, side-by-side, then you can access them via the excellent [VSCode Remote SSH support](https://code.visualstudio.com/docs/remote/ssh).
+Each environment:
 
-Mostly a project to understand and learn what it takes to host an environment.
+1. Is a container is provisioned with whatever tools are needed by developers. Container images are centrally managed allowing adminsitrative curation.  The only hard requirement is that the container has a running SSH server.
+2. The container setup is created for each user.  User's home directory is persisted to a docker volume that survives container restarts.  Each container gets it own docker 
+socket so they do not conflict with each other, etc.
+3. Environments can be managed using a CLI included in the `client` folder.
 
-The containers will have a home directory that is mounted external (at ./home of this dir) so files here will persist across restarts.
+With a full image, you get support for VSCode Remote, JetBrains Remote Gateway, and in-browser VSCode and IDEA Projector, built in.
 
-![](docker-env.gif)
+## Setup Server
+
+To set up a server, you just need an instance that supports SSH and Docker.
+
+1. Clone this repo
+2. Run `standup` in the root.  This will build the docker containers, then build and start the server on port `3001` in your host.
 
 
-## Setup
+## Accessing with Client
 
-You can use the Dockerfile at `./build/Dockerfile` or customize it, but it must preserve the end part (see WARNING in the Dockerfile) that sets up user, ssh, etc.  To make this project better, it might be worth refactoring that out or, better yet, baking all of this into a base Docker image that contains all of the required steps and additional layers can then easily add packages or other commands.
+To create an environment, you need to be able to access the server via SSH.
 
-To run multiple side by side, simply give them different container names, e.g. `docker-env start shawn shawn_project1`, `docker-env start shawn shawn_project2`, etc.
+Let's imagine our server is `server.my-company.com` and you have access to it via `ssh server.my-company.com`.
 
-## Commands
+This is the server you ran the above steps on.
 
-The `docker-env` command allows building, starting, and upgrading containers.
+Now, on a client.
 
-`docker-env build`
-
-Builds or rebuilds the container.
-
-`docker-env start [user-name] [container name]`
-
-`start` starts a container for the given user, default to current user.  It assumes this user exists on the host.
-
-Optionally you can pass a second arg to specify the container name.  Else it defaults to `user_env`, like "shawn_env"
-
-This will output the port for the newly created container.
-
-`docker-env connect [container-name] [user-name]`
-
-SSH connect to the container, optionally with user name: `docker-env connect shawn_env`
-
-`docker-env upgrade`
-
-Updates all running containers to the latest build and then restarts them.  Use this if you've made changes to Dockerfile.
-
-## Usage
-
-Start a container, then connect to it.
+1. Clone this repo
+2. `cd client`
+3. Connect to the API: `./docker-env connect api server.my-company.com`.  This will create an SSH tunnel on port `3001` to allow access to the server API.
+4. Create a developer enviornment: `./docker-env create devbox`.  This will create a server for you to use:
 
 ```
-$ ./docker-env start shawn
-Created container shawn_env
-Running.  SSH: 0.0.0.0:32792
-
-$ ./docker-env connect shawn_env
-Linux 082d61bdc62c 5.4.0-42-generic #46-Ubuntu SMP Fri Jul 10 00:24:02 UTC 2020 x86_64
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-Last login: Mon Sep 21 17:06:49 2020 from 172.17.0.1
-shawn@082d61bdc62c:~$ go version
-go version go1.14.2 linux/amd64
-shawn@082d61bdc62c:~$ ^C
-shawn@082d61bdc62c:~$ 
-
+❯ ./docker-env create devbox
+Created devbox
+	SSH Port: 35385
+    Run `docker-env connect devbox` to start tunnels
 ```
 
+Here the environment is running, so we set up our local ports to access it.
+
+5. `./docker-env connect devbox`
+
+```
+❯ ./docker-env connect devbox
+Connected SSH as localhost:35385
+	Command: ssh -NL 35385:localhost:35385 kraken-dev-s466
+```
+
+Success! We've now connected!
+
+6. SSH to the instance `./docker-env ssh devbox`.  This will give you an SSH prompt.
+
+Here you can also run VSCode or JetBrains remote using the SSH access.  
+
+Enjoy!

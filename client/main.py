@@ -97,7 +97,7 @@ class DockerEnvClient(object):
             instance = response.get('content', {})
             print(f'Created {instance["name"]}')
             print(f'\tSSH Port: {instance["ssh_port"]}')
-            print(f'Run `docker-env connect [jumpbox]` to start tunnels')
+            print(f'Run `docker-env connect {instance["name"]}` to start tunnels')
         elif status_code == 409:
             print(f'Instance {name} already exists')
         else:
@@ -301,7 +301,7 @@ class DockerEnvClient(object):
         ssh_port = instance["ssh_port"]
 
         if not self._is_used(ssh_port):
-            print(f'SSH port is not open, run `docker-env connect {name} [jumpbox]` first')
+            print(f'SSH port is not open, run `docker-env connect {name}` first')
             sys.exit(1)
 
         command = f'ssh -A -p {ssh_port} {self.user}@localhost'
