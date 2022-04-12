@@ -1,0 +1,13 @@
+#! /bin/bash
+
+# Ensure the images are built
+pushd workspace-images
+./build-images
+popd
+
+# Ensure the server is built
+pushd backend
+./start -r -d docker-env-server
+popd
+
+tail -f docker-end-server
