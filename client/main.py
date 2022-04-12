@@ -179,6 +179,8 @@ class DockerEnvClient(object):
 
         if jumpbox is None:
             jumpbox = self._load_jumpbox()
+            if jumpbox:
+                print(f'Loaded saved jumpbox {jumpbox}')
 
         if jumpbox is None:
             jumpbox = f'{self.user}@localhost'
