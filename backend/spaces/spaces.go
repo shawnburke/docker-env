@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -22,15 +24,16 @@ import (
 )
 
 type NewSpace struct {
-	User       string
-	Name       string
-	Password   string
-	Image      string
-	PubKey     string
-	SshPort    int
-	VsCodePort int
-	Root       string
-	UserRoot   string
+	User          string
+	Name          string
+	Password      string
+	Image         string
+	PubKey        string
+	SshPort       int
+	VsCodePort    int
+	ProjectorPort int
+	Root          string
+	UserRoot      string
 }
 
 func (ns NewSpace) PubKeyEncoded() string {
@@ -236,6 +239,19 @@ func (dcm *dockerComposeManager) stats(user, name string) (*ContainerStats, erro
 	return &cs, err
 }
 
+func raw_connect(host string, port int) bool {
+	timeout := time.Second
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port)), timeout)
+	if err != nil {
+		return false
+	}
+	if conn != nil {
+		defer conn.Close()
+		return true
+	}
+	return false
+}
+
 func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, error) {
 
 	i := &Instance{
@@ -266,11 +282,22 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	i.Status = j.State.Status
 
 	i.SshPort = getPort(22, j.NetworkSettings.Ports)
-	i.Ports = append(i.Ports, instancePort{
-		Port:    getPort(8080, j.NetworkSettings.Ports),
-		Label:   "VSCode Browser",
-		Message: "Connect to VSCode browser at http://localhost:LOCAL_PORT",
-	})
+
+	if raw_connect("0.0.0.0", 8080) {
+		i.Ports = append(i.Ports, instancePort{
+			Port:    getPort(8080, j.NetworkSettings.Ports),
+			Label:   "VSCode Browser",
+			Message: "Connect to VSCode browser at http://localhost:LOCAL_PORT",
+		})
+	}
+
+	if raw_connect("0.0.0.0", 9999) {
+		i.Ports = append(i.Ports, instancePort{
+			Port:    getPort(9999, j.NetworkSettings.Ports),
+			Label:   "IntelliJ Projector",
+			Message: "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
+		})
+	}
 
 	if stats {
 		s, err := dcm.stats(user, name)
@@ -386,8 +413,14 @@ func createSpaceFiles(dir string, space NewSpace) error {
 		space.VsCodePort = port
 	}
 
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		return err
+	}
+	space.ProjectorPort = port
+
 	// create the dir
-	err := os.MkdirAll(dir, os.ModeDir|os.ModePerm)
+	err = os.MkdirAll(dir, os.ModeDir|os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -452,6 +485,7 @@ services:
         ports:
             - "{{.SshPort}}:22"
             - "{{.VsCodePort}}:8080"
+	    - "{{.ProjectorPort}}:9999"
         environment:
             DOCKER_HOST: "tcp://{{.User}}-{{.Name}}-dind:2375"
             ENV_USER: "{{.User}}"
