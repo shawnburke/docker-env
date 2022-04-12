@@ -1,0 +1,11 @@
+#! /bin/bash
+
+
+if [ ! -x $(which projector) ]
+then
+    pip3 install projector-installer --user
+    echo "Please run 'source ~/.profile', then 'projector'"
+fi
+
+source ~/.profile
+projector
