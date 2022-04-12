@@ -123,8 +123,10 @@ class DockerEnvClient(object):
         if status_code == 200:
             print(f'Instance {instance["name"]} is {instance["status"]}')
             print(f'\tSSH Port: {instance["ssh_port"]}')
-            for p in instance["ports"]:
-                print(f'\t{port["label"]}: {port["port"]}')
+            ports = instance.get("ports", [])
+            if ports is not None:
+                for p in ports:
+                    print(f'\t{port["label"]}: {port["port"]}')
             print(f'')
             stats = instance.get('container_stats', {})
             mem = stats["memory_stats"]["usage"]
@@ -203,15 +205,18 @@ class DockerEnvClient(object):
         jb = open(jumpboxFilePath, "w")
         jb.write(jumpbox)
         jb.close()
+        print(f'Saved jumpbox {jumpbox}')
     
     def _load_jumpbox(self):
+        jb = None
         try:
             jb = open(jumpboxFilePath, "r")
             return jb.read()
         except FileNotFoundError:
             return None
         finally:
-            jb.close()
+            if jb:
+              jb.close()
 
     def connect(self, name, jumpbox):
         """
@@ -222,7 +227,7 @@ class DockerEnvClient(object):
         if name == "api":
             # here we set up the basics for the api itself.
             tunnel = self._setup_tunnel("API", self.port, 3001, jumpbox)
-            if tunnel.poll():
+            if not tunnel.poll():
                 # write a .jumpbox file
                 self._save_jumpbox(jumpbox)
             return
@@ -248,7 +253,12 @@ class DockerEnvClient(object):
 
         tunnels.append(tunnel)
 
-        for port in instance.get("ports",[]):
+        ports = instance.get("ports", [])
+
+        if ports is None:
+            ports = []
+
+        for port in ports:    
             offset += 1
             local_port = port["port"] # port_base + port.get("offset", offset)
             message = port.get("message", None)
