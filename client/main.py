@@ -8,6 +8,8 @@ import socket
 import subprocess
 import time
 
+default_port=3001
+jumpboxFilePath="/tmp/.jumpbox"
 
 class DockerEnvClient(object):
     """
@@ -171,8 +173,14 @@ class DockerEnvClient(object):
 
     def _setup_tunnel(self, label, remote_port, local_port, jumpbox=None, message=""):
 
+
+
+        if jumpbox is None:
+            jumpbox = self._load_jumpbox()
+
         if jumpbox is None:
             jumpbox = f'{self.user}@localhost'
+        
         args="-NL"
         #if label == "SSH":
         #    args="-L"
@@ -189,10 +197,36 @@ class DockerEnvClient(object):
             proc.label = label
         return proc
 
+
+
+    def _save_jumpbox(self, jumpbox):
+        jb = open(jumpboxFilePath, "w")
+        jb.write(jumpbox)
+        jb.close()
+    
+    def _load_jumpbox(self):
+        try:
+            jb = open(jumpboxFilePath, "r")
+            return jb.read()
+        except FileNotFoundError:
+            return None
+        finally:
+            jb.close()
+
     def connect(self, name, jumpbox):
         """
         connect sets up the tunnel(s) to the box, mapping to local ports
         """
+
+
+        if name == "api":
+            # here we set up the basics for the api itself.
+            tunnel = self._setup_tunnel("API", self.port, 3001, jumpbox)
+            if tunnel.poll():
+                # write a .jumpbox file
+                self._save_jumpbox(jumpbox)
+            return
+
         response = self._request(f'/{name}')
         status_code = response["status"]
         if status_code != 200:
@@ -281,7 +315,7 @@ if __name__ == '__main__':
     # connect IntelliJ or VSCode SSH => localhost:50022
 
     host=os.environ.get("HOST", "localhost")
-    port=os.environ.get("PORT", 3001)
+    port=os.environ.get("PORT", default_port)
   
     # create the top-level parser
     parser = argparse.ArgumentParser(prog='docker-env')
