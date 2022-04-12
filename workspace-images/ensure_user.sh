@@ -38,10 +38,14 @@ fi
 # host machine can securely SSH in for same user
 cd $homedir
 mkdir -p $homedir/.ssh
-if [[ -f /tmp/pubkey && ! -f $homedir/.ssh/authorized_keys ]]
+
+
+if [[ -n "$PUBKEY" ]]
 then
-	cat /tmp/pubkey >> $homedir/.ssh/authorized_keys
+	decoded=$(echo "$PUBKEY" | base64 -d)
+	echo "$decoded">> $homedir/.ssh/authorized_keys
 	chmod 600 .ssh/authorized_keys
+	echo "Successfully wrote pubkey: $(cat /.ssh/authorized_keys)"
 fi
 
 chown -R $1:$1 $homedir

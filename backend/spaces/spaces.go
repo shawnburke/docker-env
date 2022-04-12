@@ -3,6 +3,7 @@ package spaces
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -30,6 +31,15 @@ type NewSpace struct {
 	VsCodePort int
 	Root       string
 	UserRoot   string
+}
+
+func (ns NewSpace) PubKeyEncoded() string {
+	if ns.PubKey == "" {
+		return ""
+	}
+
+	return base64.URLEncoding.EncodeToString([]byte(ns.PubKey))
+
 }
 
 type Instance struct {
@@ -446,9 +456,9 @@ services:
             DOCKER_HOST: "tcp://{{.User}}-{{.Name}}-dind:2375"
             ENV_USER: "{{.User}}"
             ENV_USER_PASSWORD: "{{.Password}}"
+            {{ if .PubKey }}PUBKEY: "{{.PubKeyEncoded}}"{{ end }}
         volumes:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
-            {{ if .PubKey }}- "./pubkey:/tmp/pubkey"{{ end }}
 volumes:
   {{.User}}-{{.Name}}-volume:
 

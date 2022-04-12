@@ -1,6 +1,2 @@
 #! /bin/sh 
-<<<<<<< Updated upstream
 python3 main.py $@
-=======
-python3 main.py $@
->>>>>>> Stashed changes
