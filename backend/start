@@ -1,7 +1,20 @@
 #! /bin/bash
 
 tag=docker-env-server:local
-[[ "$1" == "rebuild" ]] && rebuild=1
+
+while getopts ":hrd" opt; do
+  case ${opt} in
+    d ) args="-d"
+	echo "setting daemon mode..."
+      ;;
+    r) rebuild=1
+      ;;
+    h) echo "Usage: start [-h] [-r (rebuild)] [-d (daemon)]"
+            exit 0
+      ;;
+  esac
+done
+
 if ! docker inspect $tag 2>&1 >/dev/null
 then
     rebuild=1
@@ -10,4 +23,5 @@ fi
 [[ -n "$rebuild" ]] && docker build -t $tag .
 
 
-docker run -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+docker run $args --name "docker-env" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+

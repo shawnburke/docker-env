@@ -93,6 +93,8 @@ RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
 
 # Add VSCode-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
+COPY start-code-server.sh /usr/local/bin
+
 
 # Clean up
 RUN apt-get autoremove -y \
