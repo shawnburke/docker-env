@@ -49,7 +49,7 @@ type Instance struct {
 	User           string          `json:"user"`
 	Name           string          `json:"name"`
 	SshPort        int             `json:"ssh_port"`
-	Ports          []instancePort  `json:"ports"`
+	Ports          []instancePort  `json:"ports,omitempty"`
 	Status         string          `json:"status"`
 	ContainerStats *ContainerStats `json:"container_stats,omitempty"`
 }
