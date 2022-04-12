@@ -147,10 +147,7 @@ class DockerEnvClient(object):
             return
         print(f'Unexpected status {response.status}')
 
-    def tunnel(self):
-        print(
-            f"ssh -A -p SSH_PORT -NL LOCAL_PORT:localhost:SSH_PORT {self.user}@localhost")
-
+    def tunnel(self, name, ssh_target=None, port=None):
         response = self._request(f'/{name}')
         status_code = response["status"]
         if status_code != 200:
@@ -159,7 +156,17 @@ class DockerEnvClient(object):
 
         instance = response["content"]
         ssh_port = instance["ssh_port"]
-        command = f'ssh -A -p {ssh_port} {ssh_port}:localhost:{ssh_port} {self.user}@localhost'
+
+        if not ssh_target:
+            ssh_target = f'{self.user}@localhost'
+
+        if port == 'ssh':
+            port = ssh_port
+        elif port == 'vscode':
+            port = instance["vscode_port"]
+
+    
+        command = f'ssh -A -NL {port}:localhost:{port} {ssh_target}'
         print(command)        
         os.system(command)
 
@@ -230,9 +237,9 @@ if __name__ == '__main__':
         'ssh', help='open a command prompt to the instance')
     parser_ssh.add_argument(dest='ssh_name', nargs='?', help='name of instance')
 
-    parser_tunnel = sub_parsers.add_parser(
-        'tunnel', help='list current enviornments')
-    parser_tunnel.add_argument(dest='tunnel_name', nargs='?', help='name of instance')
+    parser_tunnel = sub_parsers.add_parser('tunnel', help='tunnel to instance jumpbox')
+    parser_tunnel.add_argument(dest='tunnel_name', help='name of instance')
+    parser_tunnel.add_argument(dest='tunnel_target', nargs="?", help='ssh target eg user@somehost.com')
 
 
     args = parser.parse_args()
@@ -250,4 +257,4 @@ if __name__ == '__main__':
     elif args.command_name == 'ssh':
         cli.ssh(args.ssh_name)
     elif args.command_name == 'tunnel':
-        cli.ssh(args.tunnel_name)
+        cli.tunnel(args.tunnel_name, args.tunnel_target)
