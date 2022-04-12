@@ -173,14 +173,19 @@ class DockerEnvClient(object):
 
         if jumpbox is None:
             jumpbox = f'{self.user}@localhost'
-
-        proc = subprocess.Popen(["ssh", "-NL", f'{local_port}:localhost:{remote_port}', jumpbox])
+        args="-NL"
+        #if label == "SSH":
+        #    args="-L"
+        proc = subprocess.Popen(["ssh",args, f'{local_port}:localhost:{remote_port}', jumpbox])
         if proc.poll() != None:
             print(f'Error: failed to tunnel exit code={proc.returncode}')
             stdout, stderr = proc.communicate()
             return None
         else:
-            print(f'Connected {label} as localhost:{local_port}\t{message}')
+            print(f'Connected {label} as localhost:{local_port}')
+            if message:
+                print(f'\tMessage: {message}')
+            print(f'\tCommand: ssh {args} {local_port}:localhost:{local_port} {jumpbox}')
             proc.label = label
         return proc
 
