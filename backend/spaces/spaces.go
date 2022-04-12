@@ -239,23 +239,17 @@ func (dcm *dockerComposeManager) stats(user, name string) (*ContainerStats, erro
 	return &cs, err
 }
 
-func raw_connect(host string, port int) bool {
-	timeout := time.Second
+func check_open(label, host string, port int) bool {
+	timeout := time.Millisecond * 100
 	hostport := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	fmt.Println("Checking hostport")
+	log.Printf("Checking hostport %s for %s", hostport, label)
 	conn, err := net.DialTimeout("tcp", hostport, timeout)
-	if err != nil {
-		fmt.Println("Checking hostport err", err)
+	if err != nil || conn == nil {
 		return false
 	}
-	if conn != nil {
-
-		defer conn.Close()
-		fmt.Println("Checking hostport yes")
-		return true
-	}
-	fmt.Println("Checking hostport no")
-	return false
+	log.Printf("\thostport %s is open!", hostport)
+	defer conn.Close()
+	return true
 }
 
 func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, error) {
@@ -297,7 +291,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 
 	vscport := getPort(8080, j.NetworkSettings.Ports)
-	if raw_connect(gateway, vscport) {
+	if check_open("VSCode", gateway, vscport) {
 		i.Ports = append(i.Ports, instancePort{
 			Port:    vscport,
 			Label:   "VSCode Browser",
@@ -307,7 +301,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 
 	projport := getPort(9999, j.NetworkSettings.Ports)
 
-	if raw_connect(gateway, projport) {
+	if check_open("Projector", gateway, projport) {
 		i.Ports = append(i.Ports, instancePort{
 			Port:    projport,
 			Label:   "IntelliJ Projector",
