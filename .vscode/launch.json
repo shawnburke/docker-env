@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/client/main.py",
-            "args": ["create", "test-space"],
+            "args": ["connect", "dragon"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

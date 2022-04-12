@@ -4,6 +4,9 @@ import os
 import http.client
 import json
 import sys
+import socket
+import subprocess
+import time
 
 
 class DockerEnvClient(object):
@@ -92,6 +95,7 @@ class DockerEnvClient(object):
             instance = response.get('content', {})
             print(f'Created {instance["name"]}')
             print(f'\tSSH Port: {instance["ssh_port"]}')
+            print(f'Run `docker-env connect [jumpbox]` to start tunnels')
         elif status_code == 409:
             print(f'Instance {name} already exists')
         else:
@@ -117,7 +121,8 @@ class DockerEnvClient(object):
         if status_code == 200:
             print(f'Instance {instance["name"]} is {instance["status"]}')
             print(f'\tSSH Port: {instance["ssh_port"]}')
-            print(f'\tVSCode Port: {instance["vscode_port"]}')
+            for p in instance["ports"]:
+                print(f'\t{port["label"]}: {port["port"]}')
             print(f'')
             stats = instance.get('container_stats', {})
             mem = stats["memory_stats"]["usage"]
@@ -147,7 +152,42 @@ class DockerEnvClient(object):
             return
         print(f'Unexpected status {response.status}')
 
-    def tunnel(self, name, ssh_target=None, port=None):
+    def _is_used(self, port):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(.1)                                 
+            result = sock.connect_ex(('localhost',port))
+            return result == 0
+        finally:
+            sock.close()
+
+    def _find_port_range(self):
+        start = 50000
+
+        while True:
+            if not self._is_used(start+22):
+                return start
+                
+
+    def _setup_tunnel(self, label, remote_port, local_port, jumpbox=None, message=""):
+
+        if jumpbox is None:
+            jumpbox = f'{self.user}@localhost'
+
+        proc = subprocess.Popen(["ssh", "-NL", f'{local_port}:localhost:{remote_port}', jumpbox])
+        if proc.poll() != None:
+            print(f'Error: failed to tunnel exit code={proc.returncode}')
+            stdout, stderr = proc.communicate()
+            return None
+        else:
+            print(f'Connected {label} as localhost:{local_port}\t{message}')
+            proc.label = label
+        return proc
+
+    def connect(self, name, jumpbox):
+        """
+        connect sets up the tunnel(s) to the box, mapping to local ports
+        """
         response = self._request(f'/{name}')
         status_code = response["status"]
         if status_code != 200:
@@ -157,18 +197,45 @@ class DockerEnvClient(object):
         instance = response["content"]
         ssh_port = instance["ssh_port"]
 
-        if not ssh_target:
-            ssh_target = f'{self.user}@localhost'
+        # port_base = self._find_port_range()
 
-        if port == 'ssh' or port is None:
-            port = ssh_port
-        elif port == 'vscode':
-            port = instance["vscode_port"]
+        offset = 22
+        tunnels = []
+        tunnel = self._setup_tunnel("SSH", ssh_port, ssh_port, jumpbox)
 
-    
-        command = f'ssh -A -NL {port}:localhost:{port} {ssh_target}'
-        print(command)        
-        os.system(command)
+        if tunnel is None:
+            print(f'Failed to set up SSH tunnel.')
+            sys.exit(1)
+
+        tunnels.append(tunnel)
+
+        for port in instance.get("ports",[]):
+            offset += 1
+            local_port = port["port"] # port_base + port.get("offset", offset)
+            message = port.get("message", None)
+            if message:
+                message = message.replace("LOCAL_PORT", str(local_port))
+            tunnel = self._setup_tunnel(port["label"], port["port"], local_port, jumpbox, message)
+            if tunnel is not None:
+                tunnels.append(tunnel)
+
+        # every 1 second, poll the tunnels and exit if any have failed
+        run = True
+        while run:
+            time.sleep(1)
+            for tunnel in tunnels:
+                status = tunnel.poll()
+                if status is None:
+                    continue
+
+                print(f'Tunnel has exited: {tunnel.label}')
+                run = False
+                break
+                
+        # kill all tunnels
+        for tunnel in tunnels:
+            if tunnel.poll() is not None:
+                tunnel.kill()
 
     def ssh(self, name):
 
@@ -180,12 +247,33 @@ class DockerEnvClient(object):
 
         instance = response["content"]
 
-        command = f'ssh -A -p {instance["ssh_port"]} {self.user}@localhost'
+        ssh_port = instance["ssh_port"]
+
+        if not self._is_used(ssh_port):
+            print(f'SSH port is not open, run `docker-env connect {name} [jumpbox]` first')
+            sys.exit(1)
+
+        command = f'ssh -A -p {ssh_port} {self.user}@localhost'
         print(command)        
         os.system(command)
         
 
 if __name__ == '__main__':
+
+    #
+    # docker-env ls => list instances
+    # docker-env create my-instance => create new instance
+    #       Created my-instance
+    #           SSH-port: 1234
+    #       run 'docker-env connect' to set up tunnels
+    # 
+    # docker-env connect my-instance
+    #       SSH is          localhost:50022
+    #       VSCode Brower   http://localhost:50030 (password=afasfa34134)
+    #
+    # docker-env ssh => connect and forward ssh: ssh -A -p 50022 user@localhost
+    # 
+    # connect IntelliJ or VSCode SSH => localhost:50022
 
     host=os.environ.get("HOST", "localhost")
     port=os.environ.get("PORT", 3001)
@@ -204,7 +292,7 @@ if __name__ == '__main__':
         help='command help', dest="command_name")
 
     #
-    # CREATE Space
+    # CREATE Instance
     #
     parser_create = sub_parsers.add_parser(
         'create', help='create new instance')
@@ -217,7 +305,10 @@ if __name__ == '__main__':
     parser_create.add_argument(
         '--image', dest="create_image", help='instance image. Must have SSH avaialble over port 22.')
     
-
+    
+    #
+    # List instances
+    #
 
     parser_ls = sub_parsers.add_parser(
         'ls', help='list current instances')
@@ -227,19 +318,28 @@ if __name__ == '__main__':
     parser_info.add_argument(
         dest='info_name', nargs='?', help='name of instance')
 
+    # 
+    # destroy instance
+    #
     parser_destroy = sub_parsers.add_parser(
         'destroy', help='destroy an instance')
     parser_destroy.add_argument(
         dest='destroy_name', nargs='?', help='name to instance to destroy')
 
+    #
+    # Connect via a jumpbox
+    #
+    parser_tunnel = sub_parsers.add_parser('connect', help='tunnel to instance jumpbox')
+    parser_tunnel.add_argument(dest='tunnel_name', help='name of instance')
+    parser_tunnel.add_argument(dest='tunnel_jumpbox', nargs="?", help='ssh target of jumpbox instance, e.g. somebox.foo.com or username@jumpbox.mycompany.com')
 
+    #
+    # SSH shell into instance
+    #
     parser_ssh = sub_parsers.add_parser(
         'ssh', help='open a command prompt to the instance')
     parser_ssh.add_argument(dest='ssh_name', nargs='?', help='name of instance')
 
-    parser_tunnel = sub_parsers.add_parser('tunnel', help='tunnel to instance jumpbox')
-    parser_tunnel.add_argument(dest='tunnel_name', help='name of instance')
-    parser_tunnel.add_argument(dest='tunnel_target', nargs="?", help='ssh target eg user@somehost.com')
 
 
     args = parser.parse_args()
@@ -256,5 +356,5 @@ if __name__ == '__main__':
         cli.destroy(args.destroy_name)
     elif args.command_name == 'ssh':
         cli.ssh(args.ssh_name)
-    elif args.command_name == 'tunnel':
-        cli.tunnel(args.tunnel_name, args.tunnel_target)
+    elif args.command_name == 'connect':
+        cli.connect(args.tunnel_name, args.tunnel_jumpbox)

@@ -1,8 +1,13 @@
 #! /bin/bash
 
 tag=docker-env-server:local
+[[ "$1" == "rebuild" ]] && rebuild=1
 if ! docker inspect $tag 2>&1 >/dev/null
 then
-    docker build -t $tag .
+    rebuild=1
 fi
+
+[[ -n "$rebuild" ]] && docker build -t $tag .
+
+
 docker run -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local

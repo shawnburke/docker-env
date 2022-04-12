@@ -3,12 +3,11 @@ package spaces
 import (
 	"os"
 	"path"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteFiles(t testing.T) {
+func TestWriteFiles(t require.TestingT) {
 	// pwd, err := os.Getwd()
 	// require.NoError(t, err)
 	dir := path.Join(os.TempDir(), ".tmp", "docker-env")

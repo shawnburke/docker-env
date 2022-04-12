@@ -33,12 +33,18 @@ type NewSpace struct {
 }
 
 type Instance struct {
-	User           string         `json:"user"`
-	Name           string         `json:"name"`
-	SshPort        int            `json:"ssh_port"`
-	VsCodePort     int            `json:"vscode_port"`
-	Status         string         `json:"status"`
-	ContainerStats ContainerStats `json:"container_stats,omitempty"`
+	User           string          `json:"user"`
+	Name           string          `json:"name"`
+	SshPort        int             `json:"ssh_port"`
+	Ports          []instancePort  `json:"ports"`
+	Status         string          `json:"status"`
+	ContainerStats *ContainerStats `json:"container_stats,omitempty"`
+}
+
+type instancePort struct {
+	Label   string `json:"label"`
+	Message string `json:"message"`
+	Port    int    `json:"port"`
 }
 type Manager interface {
 	Create(space NewSpace) (*Instance, string, error)
@@ -250,14 +256,18 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	i.Status = j.State.Status
 
 	i.SshPort = getPort(22, j.NetworkSettings.Ports)
-	i.VsCodePort = getPort(8080, j.NetworkSettings.Ports)
+	i.Ports = append(i.Ports, instancePort{
+		Port:    getPort(8080, j.NetworkSettings.Ports),
+		Label:   "VSCode Browser",
+		Message: "Connect to VSCode browser at http://localhost:LOCAL_PORT",
+	})
 
 	if stats {
 		s, err := dcm.stats(user, name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting stats: %v", err)
 		} else {
-			i.ContainerStats = *s
+			i.ContainerStats = s
 		}
 	}
 
