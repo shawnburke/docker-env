@@ -9,7 +9,7 @@ while getopts ":hrd" opt; do
       ;;
     r) rebuild=1
       ;;
-    h) echo "Usage: start [-h] [-r (rebuild)] [-d (daemon)]"
+    h) echo "Usage: start [-h] [-r (rebuild)] [-d (daemon)] [container name default=docker-env-server]"
             exit 0
       ;;
   esac
@@ -23,5 +23,10 @@ fi
 [[ -n "$rebuild" ]] && docker build -t $tag .
 
 
-docker run $args --name "docker-env" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+container_name=${@:$OPTIND:1}
+[[ -z "$container_name" ]] && container_name=docker-env-server
+
+echo "Name: $container_name"
+
+docker run $args --name "$container_name" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
 
