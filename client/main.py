@@ -64,6 +64,9 @@ class DockerEnvClient(object):
             conn.close()
 
     def create(self, name, password=None, pubkey_path=None, image=None):
+        """
+            Create an instance, with optional password and pubkey
+        """
         opts = {
             "user": self.user,
             "name": name,
@@ -127,7 +130,7 @@ class DockerEnvClient(object):
             if ports is not None:
                 for p in ports:
                     print(f'\t{p["label"]}: {p["port"]}')
-            print(f'')
+            print('')
             stats = instance.get('container_stats', {})
             mem = stats["memory_stats"]["usage"]
             print(f'\tMemory: {mem / (1024*1024)}mb')
@@ -154,7 +157,7 @@ class DockerEnvClient(object):
                 
                 print(f'{instance["name"]}\t\t{instance["status"]}')
             return
-        print(f'Unexpected status {response.status}')
+        print(f'Unexpected status {response["status"]}')
 
     def _is_used(self, port):
         try:
@@ -252,7 +255,7 @@ class DockerEnvClient(object):
         tunnel = self._setup_tunnel("SSH", ssh_port, ssh_port, jumpbox)
 
         if tunnel is None:
-            print(f'Failed to set up SSH tunnel.')
+            print('Failed to set up SSH tunnel.')
             sys.exit(1)
 
         tunnels.append(tunnel)
@@ -262,13 +265,13 @@ class DockerEnvClient(object):
         if ports is None:
             ports = []
 
-        for port in ports:    
+        for p in ports:    
             offset += 1
-            local_port = port["port"] # port_base + port.get("offset", offset)
-            message = port.get("message", None)
+            local_port = p["port"] # port_base + port.get("offset", offset)
+            message = p.get("message", None)
             if message:
                 message = message.replace("LOCAL_PORT", str(local_port))
-            tunnel = self._setup_tunnel(port["label"], port["port"], local_port, jumpbox, message)
+            tunnel = self._setup_tunnel(p["label"], p["port"], local_port, jumpbox, message)
             if tunnel is not None:
                 tunnels.append(tunnel)
 
@@ -384,7 +387,10 @@ if __name__ == '__main__':
     #
     parser_tunnel = sub_parsers.add_parser('connect', help='tunnel to instance jumpbox')
     parser_tunnel.add_argument(dest='tunnel_name', help='name of instance')
-    parser_tunnel.add_argument(dest='tunnel_jumpbox', nargs="?", help='ssh target of jumpbox instance, e.g. somebox.foo.com or username@jumpbox.mycompany.com')
+    parser_tunnel.add_argument(
+        dest='tunnel_jumpbox', 
+        nargs="?", 
+        help='ssh target of jumpbox instance, e.g. somebox.foo.com or username@somebox')
 
     #
     # SSH shell into instance

@@ -33,5 +33,6 @@ then
   echo "Removed old container"
 fi
 
-docker run $args --name "$container_name" -p "3001:3001" -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+# Note this runs on host network
+docker run $args --name "$container_name" -e "PORT=3001" --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
 

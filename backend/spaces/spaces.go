@@ -55,9 +55,10 @@ type Instance struct {
 }
 
 type instancePort struct {
-	Label   string `json:"label"`
-	Message string `json:"message"`
-	Port    int    `json:"port"`
+	Label     string `json:"label"`
+	Message   string `json:"message"`
+	Port      int    `json:"port"`
+	localPort int
 }
 type Manager interface {
 	Create(space NewSpace) (*Instance, string, error)
@@ -242,14 +243,56 @@ func (dcm *dockerComposeManager) stats(user, name string) (*ContainerStats, erro
 func check_open(label, host string, port int) bool {
 	timeout := time.Millisecond * 100
 	hostport := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	log.Printf("Checking hostport %s for %s", hostport, label)
+	open := false
+
+	defer func() {
+		log.Printf("hostport %s for %s open: %v", hostport, label, open)
+	}()
 	conn, err := net.DialTimeout("tcp", hostport, timeout)
 	if err != nil || conn == nil {
 		return false
 	}
-	log.Printf("\thostport %s is open!", hostport)
+	open = true
 	defer conn.Close()
 	return true
+}
+
+func (dcm *dockerComposeManager) getOpenPorts(ns *types.NetworkSettings) []instancePort {
+
+	iPorts := []instancePort{}
+
+	if ns == nil {
+		return iPorts
+	}
+
+	gateway := ""
+	for _, n := range ns.Networks {
+		gateway = n.Gateway
+		break
+	}
+
+	ports := []instancePort{
+		{
+			localPort: 8080,
+			Label:     "VSCode Browser",
+			Message:   "Connect to VSCode browser at http://localhost:LOCAL_PORT",
+		},
+		instancePort{
+			localPort: 9999,
+			Label:     "IntelliJ Projector",
+			Message:   "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
+		},
+	}
+
+	// walk for open ports
+	for _, ip := range ports {
+		exPort := getPort(ip.localPort, ns.Ports)
+		if check_open(ip.Label, gateway, exPort) {
+			ip.Port = exPort
+			iPorts = append(iPorts, ip)
+		}
+	}
+	return iPorts
 }
 
 func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, error) {
@@ -279,37 +322,13 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 		return Instance{}, err
 	}
 
+	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 	i.Status = j.State.Status
 
-	gateway := ""
-
-	for _, n := range j.NetworkSettings.Networks {
-		gateway = n.Gateway
-		break
-	}
-
-	i.SshPort = getPort(22, j.NetworkSettings.Ports)
-
-	vscport := getPort(8080, j.NetworkSettings.Ports)
-	if check_open("VSCode", gateway, vscport) {
-		i.Ports = append(i.Ports, instancePort{
-			Port:    vscport,
-			Label:   "VSCode Browser",
-			Message: "Connect to VSCode browser at http://localhost:LOCAL_PORT",
-		})
-	}
-
-	projport := getPort(9999, j.NetworkSettings.Ports)
-
-	if check_open("Projector", gateway, projport) {
-		i.Ports = append(i.Ports, instancePort{
-			Port:    projport,
-			Label:   "IntelliJ Projector",
-			Message: "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
-		})
-	}
+	i.Ports = dcm.getOpenPorts(j.NetworkSettings)
 
 	if stats {
+
 		s, err := dcm.stats(user, name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting stats: %v", err)
