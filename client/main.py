@@ -202,9 +202,11 @@ class DockerEnvClient(object):
         return proc
 
 
+    def _make_jumpbox_path(self):
+        return f'{jumpboxFilePath}-{self.port}'
 
     def _save_jumpbox(self, jumpbox):
-        jb = open(jumpboxFilePath, "w")
+        jb = open(self._make_jumpbox_path(), "w")
         jb.write(jumpbox)
         jb.close()
         print(f'Saved jumpbox {jumpbox}')
@@ -212,7 +214,7 @@ class DockerEnvClient(object):
     def _load_jumpbox(self):
         jb = None
         try:
-            jb = open(jumpboxFilePath, "r")
+            jb = open(self._make_jumpbox_path(), "r")
             return jb.read()
         except FileNotFoundError:
             return None
@@ -228,7 +230,7 @@ class DockerEnvClient(object):
 
         if name == "api":
             # here we set up the basics for the api itself.
-            tunnel = self._setup_tunnel("API", self.port, 3001, jumpbox)
+            tunnel = self._setup_tunnel("API", 3001, self.port, jumpbox)
             if not tunnel.poll():
                 # write a .jumpbox file
                 self._save_jumpbox(jumpbox)
