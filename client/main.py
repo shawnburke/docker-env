@@ -356,7 +356,7 @@ if __name__ == '__main__':
     parser_create.add_argument(
         '--pubkey', dest="create_pubkey_path", help='pubkey path',default=f'{os.environ["HOME"]}/.ssh/id_rsa.pub')
     parser_create.add_argument(
-        '--image', dest="create_image", help='instance image. Must have SSH avaialble over port 22.')
+        '--image', dest="create_image", default='docker-env-full:local', help='instance image. Must have SSH avaialble over port 22.')
     
     
     #
