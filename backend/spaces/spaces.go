@@ -14,6 +14,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -34,6 +35,25 @@ type NewSpace struct {
 	ProjectorPort int
 	Root          string
 	UserRoot      string
+
+	Nameservers []string
+	DnsSearch   string
+}
+
+func (ns NewSpace) DockerArgs() string {
+
+	args := []string{}
+	if len(ns.Nameservers) > 0 {
+		for _, ns := range ns.Nameservers {
+			args = append(args, "--dns "+ns)
+		}
+	}
+
+	if len(ns.DnsSearch) > 0 {
+		args = append(args, "--dns-search "+ns.DnsSearch)
+	}
+
+	return strings.Join(args, " ")
 }
 
 func (ns NewSpace) PubKeyEncoded() string {
@@ -90,17 +110,21 @@ func New(dir string) Manager {
 	}
 
 	return &dockerComposeManager{
-		root:         dir,
-		uroot:        path.Join(dir, "spaces"),
-		defaultImage: defaultImage,
+		root:           dir,
+		uroot:          path.Join(dir, "spaces"),
+		defaultImage:   defaultImage,
+		dnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
+		dnsSearch:      os.Getenv("DNS_SEARCH"),
 	}
 }
 
 type dockerComposeManager struct {
-	root         string
-	uroot        string
-	cli          *client.Client
-	defaultImage string
+	root           string
+	uroot          string
+	cli            *client.Client
+	defaultImage   string
+	dnsNameservers []string
+	dnsSearch      string
 }
 
 func (dcm *dockerComposeManager) client() (*client.Client, error) {
@@ -180,6 +204,9 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	if err != nil {
 		return nil, "Can not find image " + space.Image, err
 	}
+
+	space.Nameservers = dcm.dnsNameservers
+	space.DnsSearch = dcm.dnsSearch
 
 	err = createSpaceFiles(dir, space)
 	if err != nil {
@@ -277,7 +304,7 @@ func (dcm *dockerComposeManager) getOpenPorts(ns *types.NetworkSettings) []insta
 			Label:     "VSCode Browser",
 			Message:   "Connect to VSCode browser at http://localhost:LOCAL_PORT",
 		},
-		instancePort{
+		{
 			localPort: 9999,
 			Label:     "IntelliJ Projector",
 			Message:   "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
@@ -503,6 +530,7 @@ services:
             - 2376
         environment:
             - DOCKER_TLS_CERTDIR=
+        command: "{{.DockerArgs}}"
         volumes:
             - "{{.Root}}/image-cache:/var/lib/docker/overlay2"
 
@@ -523,6 +551,5 @@ services:
         volumes:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
 volumes:
-  {{.User}}-{{.Name}}-volume:
-
+    {{.User}}-{{.Name}}-volume:
 `

@@ -10,7 +10,7 @@ RUN apt-get update && \
       bash \
       build-essential \
       ca-certificates \
-      curl iputils-ping \
+      curl iputils-ping dnsutils \
       docker.io \
       htop \
       locales \

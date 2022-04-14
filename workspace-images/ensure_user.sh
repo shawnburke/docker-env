@@ -43,7 +43,7 @@ mkdir -p $homedir/.ssh
 if [[ -n "$PUBKEY" ]]
 then
 	decoded=$(echo "$PUBKEY" | base64 -d)
-	echo "$decoded">> $homedir/.ssh/authorized_keys
+	echo "$decoded" >> $homedir/.ssh/authorized_keys
 	chmod 600 .ssh/authorized_keys
 	echo "Successfully wrote pubkey: $(cat /.ssh/authorized_keys)"
 fi

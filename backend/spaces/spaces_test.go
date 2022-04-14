@@ -1,6 +1,7 @@
 package spaces
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestWriteFiles(t *testing.T) {
@@ -20,13 +22,78 @@ func TestWriteFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	s := NewSpace{
-		User:     "the-user",
-		Password: "the-password",
-		Name:     "the-space",
+		User:        "the-user",
+		Password:    "the-password",
+		Name:        "the-space",
+		DnsSearch:   "search.com",
+		Nameservers: []string{"1.2.3.4", "8.8.8.8"},
 	}
 
 	err = createSpaceFiles(dir, s)
 	require.NoError(t, err)
+
+	stat, err := os.Stat(path.Join(dir, dockerComposeYml))
+	require.NoError(t, err)
+	require.True(t, stat.Size() > 0)
+
+}
+
+func TestCreateYaml(t *testing.T) {
+	s := NewSpace{
+		User:        "the-user",
+		Password:    "the-password",
+		Name:        "the-space",
+		DnsSearch:   "search.com",
+		Nameservers: []string{"1.2.3.4", "8.8.8.8"},
+	}
+
+	dc, err := createDockerCompose(s)
+	require.NoError(t, err)
+
+	err = yaml.Unmarshal([]byte(dc), map[string]interface{}{})
+	require.NoError(t, err)
+
+	fmt.Println(dc)
+
+	expected := `
+version: "3"
+
+services:
+
+    the-user-the-space-dind:
+        image: docker:dind
+        restart: unless-stopped
+        container_name: "dind-the-user-the-space"
+        privileged: true
+        expose:
+            - 2375
+            - 2376
+        environment:
+            - DOCKER_TLS_CERTDIR=
+        command: "--dns 1.2.3.4 --dns 8.8.8.8 --dns-search search.com"
+        volumes:
+            - "/image-cache:/var/lib/docker/overlay2"
+
+    the-user-the-space-space:
+        image: 
+        restart: unless-stopped
+        hostname: "the-user-the-space"
+        container_name: "space-the-user-the-space"
+        ports:
+            - "0:22"
+            - "0:8080"
+            - "0:9999"
+        environment:
+            DOCKER_HOST: "tcp://the-user-the-space-dind:2375"
+            ENV_USER: "the-user"
+            ENV_USER_PASSWORD: "the-password"
+            
+        volumes:
+            - "the-user-the-space-volume:/home/the-user"
+volumes:
+    the-user-the-space-volume:
+`
+	require.Equal(t, expected, dc)
 
 }
 
