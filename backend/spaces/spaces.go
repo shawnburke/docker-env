@@ -532,7 +532,7 @@ version: "3"
 
 services:
 
-    {{.User}}-{{.Name}}-dind:
+    docker:
         image: docker:dind
         restart: unless-stopped
         container_name: "dind-{{.User}}-{{.Name}}"
@@ -546,7 +546,7 @@ services:
             - "{{.Root}}/image-cache:/var/lib/docker/overlay2"
         {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
 
-    {{.User}}-{{.Name}}-space:
+    workspace:
         image: {{.Image}}
         restart: unless-stopped
         hostname: "{{.User}}-{{.Name}}"
@@ -556,7 +556,7 @@ services:
             - "{{.VsCodePort}}:8080"
             - "{{.ProjectorPort}}:9999"
         environment:
-            DOCKER_HOST: "tcp://{{.User}}-{{.Name}}-dind:2375"
+            DOCKER_HOST: "tcp://docker:2375"
             ENV_USER: "{{.User}}"
             ENV_USER_PASSWORD: "{{.Password}}"
             {{ if .PubKey }}PUBKEY: "{{.PubKeyEncoded}}"{{ end }}
