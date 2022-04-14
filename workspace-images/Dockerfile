@@ -11,8 +11,8 @@ RUN npm install -g browserify watchify yarn
 
 # setup Go
 
-RUN curl -OL https://golang.org/dl/go1.16.7.linux-amd64.tar.gz
-RUN tar -C /usr/local -xvf go1.16.7.linux-amd64.tar.gz
+RUN curl -OL https://go.dev/dl/go1.18.1.linux-amd64.tar.gz
+RUN tar -C /usr/local -xvf go1.18.1.linux-amd64.tar.gz
 RUN ln -s /usr/local/go/bin/go /usr/local/bin/go
 
 # setup Java
@@ -43,35 +43,6 @@ ENV PATH="$JAVA_HOME/bin:$PATH"
 
 RUN echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
 RUN echo "PATH=$JAVA_HOME/bin:$PATH" >> /etc/environment
-
-
-# # Install IntelliJ stuff
-
-# # Run everything as root
-USER root
-
-# Packages required for multi-editor support
-# RUN apt-get install -yq \
-#     libxtst6 \
-#     libxrender1 \
-#     libfontconfig1 \
-#     libxi6 \
-#     libgtk-3-0
-
-# Install intellij
-RUN mkdir -p /opt/idea
-RUN curl -L "https://download.jetbrains.com/product?code=IIC&latest&distribution=linux" | tar -C /opt/idea --strip-components 1 -xzvf -
-
-# # Add a binary to the PATH that points to the intellij startup script.
-RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
-
-
-# Add VSCode-server
-RUN curl -fsSL https://code-server.dev/install.sh | sh
-COPY start-code-server /usr/local/bin
-RUN chmod +x /usr/local/bin/start-code-server
-COPY install-projector /usr/local/bin
-RUN chmod +x /usr/local/bin/install-projector
 
 
 # Clean up

@@ -1,4 +1,11 @@
 #! /bin/bash
+
+
+if pgrep -f code-server >/dev/null
+then
+	exit 0
+fi
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 if [ "$1" == "launch" ]
 then
@@ -9,6 +16,6 @@ then
 	done
 fi
 
-nohup $SCRIPT_DIR/start-code-server launch &
+(nohup $SCRIPT_DIR/start-code-server launch &) 2>/dev/null
 
 

@@ -1,4 +1,5 @@
 #! /bin/bash
+set -e
 
 docker build -t docker-env-base:local -f Dockerfile-base .
 docker build -t docker-env-full:local .
