@@ -45,7 +45,9 @@ func (ns NewSpace) DockerArgs() string {
 	args := []string{}
 	if len(ns.Nameservers) > 0 {
 		for _, ns := range ns.Nameservers {
-			args = append(args, "--dns "+ns)
+			if strings.Trim(ns, " \t") != "" {
+				args = append(args, "--dns "+ns)
+			}
 		}
 	}
 
@@ -109,13 +111,23 @@ func New(dir string) Manager {
 		defaultImage = env
 	}
 
-	return &dockerComposeManager{
+	dcm := &dockerComposeManager{
 		root:           dir,
 		uroot:          path.Join(dir, "spaces"),
 		defaultImage:   defaultImage,
 		dnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
 		dnsSearch:      os.Getenv("DNS_SEARCH"),
 	}
+
+	if len(dcm.dnsNameservers) > 0 {
+		log.Printf("Using custom nameservers: %s", os.Getenv("DNS_NAMESERVERS"))
+	}
+
+	if dcm.dnsSearch != "" {
+		log.Printf("Using custom DNS search domain: %s", os.Getenv("DNS_SEARCH"))
+	}
+
+	return dcm
 }
 
 type dockerComposeManager struct {
@@ -530,9 +542,9 @@ services:
             - 2376
         environment:
             - DOCKER_TLS_CERTDIR=
-        command: "{{.DockerArgs}}"
         volumes:
             - "{{.Root}}/image-cache:/var/lib/docker/overlay2"
+        {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
 
     {{.User}}-{{.Name}}-space:
         image: {{.Image}}

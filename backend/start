@@ -33,6 +33,19 @@ then
   echo "Removed old container"
 fi
 
+if [ -n "$DNS_NAMESERVERS" ]
+then
+  
+  echo "Nameservers: $DNS_NAMESERVERS"
+  args="$args -e DNS_NAMESERVERS=\"$DNS_NAMESERVERS\" "
+fi
+
+if [ -n "$DNS_SEARCH" ]
+then
+  echo "Search: $DNS_SEARCH"
+  args="$args -e DNS_SEARCH=\"$DNS_SEARCH\" "
+fi
+
 # Note this runs on host network
 docker run $args --name "$container_name" -e "PORT=3001" --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
 
