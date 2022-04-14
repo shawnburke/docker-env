@@ -45,14 +45,15 @@ func (ns NewSpace) DockerArgs() string {
 	args := []string{}
 	if len(ns.Nameservers) > 0 {
 		for _, ns := range ns.Nameservers {
-			if strings.Trim(ns, " \t") != "" {
+			ns := strings.Trim(ns, " \t'\"")
+			if ns != "" {
 				args = append(args, "--dns "+ns)
 			}
 		}
 	}
 
 	if len(ns.DnsSearch) > 0 {
-		args = append(args, "--dns-search "+ns.DnsSearch)
+		args = append(args, "--dns-search "+strings.Trim(ns.DnsSearch, "\t '\""))
 	}
 
 	return strings.Join(args, " ")

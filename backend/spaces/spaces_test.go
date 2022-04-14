@@ -106,6 +106,18 @@ func TestNameserverArgs(t *testing.T) {
 
 }
 
+func TestNameserverArgsStripQuotes(t *testing.T) {
+	s := NewSpace{
+		User:        "the-user",
+		Password:    "the-password",
+		Name:        "the-space",
+		Nameservers: strings.Split(`"1.2.3.4,8.8.4.1"`, ","),
+	}
+
+	require.Equal(t, "--dns 1.2.3.4 --dns 8.8.4.1", s.DockerArgs())
+
+}
+
 func TestCreateYamlNoDns(t *testing.T) {
 
 	s := NewSpace{
