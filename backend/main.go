@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
+	"strings"
 
 	"github.com/shawnburke/docker-env/backend/router"
 	"github.com/shawnburke/docker-env/backend/spaces"
@@ -33,10 +33,16 @@ func main() {
 		dir = env
 	}
 
-	dir = path.Join(dir, ".spaces")
 	os.MkdirAll(dir, os.ModeDir|os.ModePerm)
 
-	manager := spaces.New(dir)
+	params := spaces.Params{
+		Dir:            os.Getenv("DIR"),
+		DefaultImage:   os.Getenv("DEFAULT_IMAGE"),
+		DnsSearch:      os.Getenv("DNS_SEARCH"),
+		DnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
+	}
+
+	manager := spaces.New(params)
 	mux := router.New(manager)
 	fmt.Println("Starting server on port: ", port)
 	fmt.Println("Using dir: ", dir)

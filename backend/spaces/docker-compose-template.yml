@@ -1,0 +1,44 @@
+version: "3"
+
+services:
+
+    docker:
+        image: docker:dind
+        restart: unless-stopped
+        container_name: "dind-{{.User}}-{{.Name}}"
+        privileged: true
+        expose:
+            - 2375
+            - 2376
+        environment:
+            - DOCKER_TLS_CERTDIR=
+        {{if .ImageCacheVolume}}volumes:
+            - "image-cache-volume:/var/lib/docker/overlay2"
+            - "image-cache-volume-images:/var/lib/docker/image"
+        {{end}}
+        {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
+
+    workspace:
+        image: {{.Image}}
+        restart: unless-stopped
+        hostname: "{{.User}}-{{.Name}}"
+        container_name: "space-{{.User}}-{{.Name}}"
+        ports:
+            - "{{.SshPort}}:22"
+            - "{{.VsCodePort}}:8080"
+            - "{{.ProjectorPort}}:9999"
+        environment:
+            DOCKER_HOST: "tcp://docker:2375"
+            ENV_USER: "{{.User}}"
+            ENV_USER_PASSWORD: "{{.Password}}"
+            {{ if .PubKey }}PUBKEY: "{{.PubKeyEncoded}}"{{ end }}
+        volumes:
+            - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
+volumes:
+  {{.User}}-{{.Name}}-volume:
+  {{if .ImageCacheVolume}}
+  {{.ImageCacheVolume}}:
+    external: true
+  {{.ImageCacheVolume}}-images:
+    external: true
+  {{end}}

@@ -3,6 +3,7 @@ package spaces
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/phayes/freeport"
@@ -36,8 +38,9 @@ type NewSpace struct {
 	Root          string
 	UserRoot      string
 
-	Nameservers []string
-	DnsSearch   string
+	Nameservers      []string
+	DnsSearch        string
+	ImageCacheVolume string
 }
 
 func (ns NewSpace) DockerArgs() string {
@@ -104,28 +107,52 @@ var spaceNames = []string{
 	"count",
 }
 
-func New(dir string) Manager {
+type Params struct {
+	DefaultImage   string
+	DnsNameservers []string
+	DnsSearch      string
+	Dir            string
+}
+
+func (p Params) Sanitize() Params {
+	cutset := "\"' \t"
+	p.Dir = strings.Trim(p.Dir, cutset)
+
+	p.DefaultImage = strings.Trim(p.DefaultImage, cutset)
+	p.DnsSearch = strings.Trim(p.DnsSearch, cutset)
+	for i := len(p.DnsNameservers) - 1; i >= 0; i-- {
+		p.DnsNameservers[i] = strings.Trim(p.DnsNameservers[i], cutset)
+		if p.DnsNameservers[i] == "" {
+			p.DnsNameservers = p.DnsNameservers[0:i]
+		}
+	}
+	return p
+}
+
+func New(p Params) Manager {
+
+	p = p.Sanitize()
 
 	defaultImage := DefaultImageName
 
-	if env := os.Getenv("DEFAULT_IMAGE"); env != "" {
-		defaultImage = env
+	if p.DefaultImage == "" {
+		p.DefaultImage = DefaultImageName
 	}
 
 	dcm := &dockerComposeManager{
-		root:           dir,
-		uroot:          path.Join(dir, "spaces"),
+		root:           p.Dir,
+		uroot:          path.Join(p.Dir, "spaces"),
 		defaultImage:   defaultImage,
-		dnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
-		dnsSearch:      os.Getenv("DNS_SEARCH"),
+		dnsNameservers: p.DnsNameservers,
+		dnsSearch:      p.DnsSearch,
 	}
 
 	if len(dcm.dnsNameservers) > 0 {
-		log.Printf("Using custom nameservers: %s", os.Getenv("DNS_NAMESERVERS"))
+		log.Printf("Using custom nameservers: %s", strings.Join(p.DnsNameservers, ","))
 	}
 
 	if dcm.dnsSearch != "" {
-		log.Printf("Using custom DNS search domain: %s", os.Getenv("DNS_SEARCH"))
+		log.Printf("Using custom DNS search domain: %s", p.DnsSearch)
 	}
 
 	return dcm
@@ -218,6 +245,12 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 		return nil, "Can not find image " + space.Image, err
 	}
 
+	// space.ImageCacheVolume = imageCacheVolumeName
+	// err = dcm.ensureImageCache(imageCacheVolumeName)
+	// if err != nil {
+	// 	return nil, err.Error(), err
+	// }
+
 	space.Nameservers = dcm.dnsNameservers
 	space.DnsSearch = dcm.dnsSearch
 
@@ -249,6 +282,44 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	}
 
 	return &i, output.String(), nil
+}
+
+const imageCacheVolumeName = "image-cache-volume"
+
+func (dcm *dockerComposeManager) ensureImageCache(name string) error {
+
+	cli, err := dcm.client()
+	if err != nil {
+		return err
+	}
+
+	tryCreate := func(name string) error {
+		_, err = cli.VolumeInspect(context.Background(), name)
+
+		if err != nil {
+
+			log.Printf("Creating shared image cache: %s`", name)
+			_, err = cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
+				Name:   name,
+				Driver: "local",
+			})
+
+			if err != nil {
+				return fmt.Errorf("Failed to create  cache volume %q: %v", name, err)
+			}
+		}
+		return err
+	}
+
+	for _, n := range []string{name} {
+		err = tryCreate(n)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }
 
 type ContainerStats struct {
@@ -528,41 +599,5 @@ func createDockerCompose(space NewSpace) (string, error) {
 
 }
 
-const dockerComposeTemplate = `
-version: "3"
-
-services:
-
-    docker:
-        image: docker:dind
-        restart: unless-stopped
-        container_name: "dind-{{.User}}-{{.Name}}"
-        privileged: true
-        expose:
-            - 2375
-            - 2376
-        environment:
-            - DOCKER_TLS_CERTDIR=
-        volumes:
-            - "{{.Root}}/image-cache:/var/lib/docker/overlay2"
-        {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
-
-    workspace:
-        image: {{.Image}}
-        restart: unless-stopped
-        hostname: "{{.User}}-{{.Name}}"
-        container_name: "space-{{.User}}-{{.Name}}"
-        ports:
-            - "{{.SshPort}}:22"
-            - "{{.VsCodePort}}:8080"
-            - "{{.ProjectorPort}}:9999"
-        environment:
-            DOCKER_HOST: "tcp://docker:2375"
-            ENV_USER: "{{.User}}"
-            ENV_USER_PASSWORD: "{{.Password}}"
-            {{ if .PubKey }}PUBKEY: "{{.PubKeyEncoded}}"{{ end }}
-        volumes:
-            - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
-volumes:
-    {{.User}}-{{.Name}}-volume:
-`
+//go:embed docker-compose-template.yml
+var dockerComposeTemplate string

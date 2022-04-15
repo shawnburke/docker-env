@@ -1,6 +1,7 @@
 package spaces
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"path"
@@ -49,48 +50,47 @@ func TestCreateYaml(t *testing.T) {
 	dc, err := createDockerCompose(s)
 	require.NoError(t, err)
 
-	err = yaml.Unmarshal([]byte(dc), map[string]interface{}{})
+	parsed := map[string]interface{}{}
+	err = yaml.Unmarshal([]byte(dc), parsed)
 	require.NoError(t, err)
 
-	expected := `
-version: "3"
+	raw, err := yaml.Marshal(parsed)
+	require.NoError(t, err)
 
-services:
+	y := strings.Trim(string(raw), " \n")
+	fmt.Println(y)
 
+	expected := `services:
     docker:
-        image: docker:dind
-        restart: unless-stopped
-        container_name: "dind-the-user-the-space"
-        privileged: true
+        command: --dns 1.2.3.4 --dns 8.8.8.8 --dns-search search.com
+        container_name: dind-the-user-the-space
+        environment:
+            - DOCKER_TLS_CERTDIR=
         expose:
             - 2375
             - 2376
-        environment:
-            - DOCKER_TLS_CERTDIR=
-        volumes:
-            - "/image-cache:/var/lib/docker/overlay2"
-        command: "--dns 1.2.3.4 --dns 8.8.8.8 --dns-search search.com"
-
-    workspace:
-        image: 
+        image: docker:dind
+        privileged: true
         restart: unless-stopped
-        hostname: "the-user-the-space"
-        container_name: "space-the-user-the-space"
+    workspace:
+        container_name: space-the-user-the-space
+        environment:
+            DOCKER_HOST: tcp://docker:2375
+            ENV_USER: the-user
+            ENV_USER_PASSWORD: the-password
+        hostname: the-user-the-space
+        image: null
         ports:
             - "0:22"
-            - "0:8080"
-            - "0:9999"
-        environment:
-            DOCKER_HOST: "tcp://docker:2375"
-            ENV_USER: "the-user"
-            ENV_USER_PASSWORD: "the-password"
-            
+            - 0:8080
+            - 0:9999
+        restart: unless-stopped
         volumes:
-            - "the-user-the-space-volume:/home/the-user"
+            - the-user-the-space-volume:/home/the-user
+version: "3"
 volumes:
-    the-user-the-space-volume:
-`
-	require.Equal(t, expected, dc)
+    the-user-the-space-volume: null`
+	require.Equal(t, expected, y)
 
 }
 
