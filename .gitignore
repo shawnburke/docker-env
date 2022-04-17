@@ -2,3 +2,4 @@ home
 ports.cache
 __debug_bin
 .cache
+__pycache__

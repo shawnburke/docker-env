@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/shawnburke/docker-env/backend/spaces"
@@ -30,6 +31,17 @@ func New(manager spaces.Manager) http.Handler {
 
 	r.Use(loggingMiddleware)
 
+	r.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		accept := strings.ToLower(r.Header.Get("Accept"))
+		switch accept {
+		case "application/json":
+			w.Write([]byte(`{"result":"OK"}`))
+		default:
+			w.Write([]byte("OK"))
+		}
+
+	})
 	spaces := r.PathPrefix("/spaces").Subrouter()
 	spaces.HandleFunc("/{user}", ret.createSpace).Methods("POST")
 	spaces.HandleFunc("/{user}", ret.listSpaces).Methods("GET")
