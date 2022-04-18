@@ -18,17 +18,22 @@ class CommandResult:
     command: str
     data: object
 
+    def get(self, field, default=None):
+        if hasattr(self.data, field):
+            return getattr(self.data, field,default)
+        return self.data.get(field, default)
+
 
 
 class Command:
-    def __init__(self, name, commands = []):
+    def __init__(self, name, commands = None):
         self.name = name
         self.commands = commands
 
     def exec(self, args) -> 'CommandResult':
         parser = self.parser()
 
-        parsed = []
+        parsed = {}
 
         if parser is not None:
             parsed = parser.parse_args(args)
@@ -53,7 +58,6 @@ class Command:
         
         return False
 
-
     def find(self, cmd) -> 'Command':
         for c in self.commands:
             if c.handles(cmd):
@@ -68,7 +72,11 @@ class RootCommand(Command):
     def __init__(self):
         super().__init__("root",[
             ListCommand(),
-            HelpCommand()
+            HelpCommand(),
+            CreateCommand(),
+            ConnectCommand(),
+            DestroyCommand(),
+            QuitCommand(),
         ] )
 
 
@@ -108,6 +116,57 @@ class HelpCommand(Command):
     def __init__(self):
         super().__init__(["help", "?"])
 
-    def command(self, args) -> 'CommandResult':
+    def parser(self):
+        return None
+
+    def command(self, name, args) -> 'CommandResult':
         print("Available commands: ls, create, destroy, connect")
         return None
+
+
+class QuitCommand(Command):
+    def __init__(self):
+        super().__init__(["quit", "exit"])
+
+    def parser(self):
+        return None
+
+    def command(self,name, args) -> 'CommandResult':
+        print("")
+        sys.exit(0)
+
+class CreateCommand(Command):
+    def __init__(self):
+        super().__init__( "create")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog='create', description="create a new instance")
+        parser.add_argument(
+            dest='name', nargs="?", help='Name of instance to create')
+        parser.add_argument(
+            '--password', dest="password", help='instance password, required if no pubkey avaiable')
+        parser.add_argument(
+            '--pubkey', dest="pubkey_path", help='pubkey path',default=f'{os.environ["HOME"]}/.ssh/id_rsa.pub')
+        parser.add_argument(
+            '--image', dest="image", default='docker-env-full:local', help='instance image. Must have SSH avaialble over port 22.')
+        return parser
+
+class ConnectCommand(Command):
+    def __init__(self):
+        super().__init__( "connect")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance to connect to')
+        return parser
+        
+
+class DestroyCommand(Command):
+    def __init__(self):
+        super().__init__( "destroy")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance to destroy')
+        return parser
+        

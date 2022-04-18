@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/client/main.py",
-            "args": ["jumpbox-name"],
+            "args": ["localhost"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
