@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/phayes/freeport"
@@ -82,10 +81,10 @@ type Instance struct {
 }
 
 type instancePort struct {
-	Label     string `json:"label"`
-	Message   string `json:"message"`
-	Port      int    `json:"port"`
-	localPort int
+	Label      string `json:"label"`
+	Message    string `json:"message"`
+	Port       int    `json:"port"`
+	RemotePort int    `json:"remote_port"`
 }
 type Manager interface {
 	Create(space NewSpace) (*Instance, string, error)
@@ -285,43 +284,43 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	return &i, output.String(), nil
 }
 
-const imageCacheVolumeName = "image-cache-volume"
+// const imageCacheVolumeName = "image-cache-volume"
 
-func (dcm *dockerComposeManager) ensureImageCache(name string) error {
+// func (dcm *dockerComposeManager) ensureImageCache(name string) error {
 
-	cli, err := dcm.client()
-	if err != nil {
-		return err
-	}
+// 	cli, err := dcm.client()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	tryCreate := func(name string) error {
-		_, err = cli.VolumeInspect(context.Background(), name)
+// 	tryCreate := func(name string) error {
+// 		_, err = cli.VolumeInspect(context.Background(), name)
 
-		if err != nil {
+// 		if err != nil {
 
-			log.Printf("Creating shared image cache: %s`", name)
-			_, err = cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
-				Name:   name,
-				Driver: "local",
-			})
+// 			log.Printf("Creating shared image cache: %s`", name)
+// 			_, err = cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
+// 				Name:   name,
+// 				Driver: "local",
+// 			})
 
-			if err != nil {
-				return fmt.Errorf("Failed to create  cache volume %q: %v", name, err)
-			}
-		}
-		return err
-	}
+// 			if err != nil {
+// 				return fmt.Errorf("Failed to create  cache volume %q: %v", name, err)
+// 			}
+// 		}
+// 		return err
+// 	}
 
-	for _, n := range []string{name} {
-		err = tryCreate(n)
-		if err != nil {
-			return err
-		}
-	}
+// 	for _, n := range []string{name} {
+// 		err = tryCreate(n)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
+// 	return nil
 
-}
+// }
 
 type ContainerStats struct {
 	MemoryStats types.MemoryStats `json:"memory_stats"`
@@ -385,20 +384,20 @@ func (dcm *dockerComposeManager) getOpenPorts(ns *types.NetworkSettings) []insta
 
 	ports := []instancePort{
 		{
-			localPort: 8080,
-			Label:     "VSCode Browser",
-			Message:   "Connect to VSCode browser at http://localhost:LOCAL_PORT",
+			RemotePort: 8080,
+			Label:      "VSCode Browser",
+			Message:    "Connect to VSCode browser at http://localhost:LOCAL_PORT",
 		},
 		{
-			localPort: 9999,
-			Label:     "IntelliJ Projector",
-			Message:   "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
+			RemotePort: 9999,
+			Label:      "IntelliJ Projector",
+			Message:    "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
 		},
 	}
 
 	// walk for open ports
 	for _, ip := range ports {
-		exPort := getPort(ip.localPort, ns.Ports)
+		exPort := getPort(ip.RemotePort, ns.Ports)
 		if check_open(ip.Label, "localhost", exPort) || check_open(ip.Label, gateway, exPort) {
 			ip.Port = exPort
 			iPorts = append(iPorts, ip)
