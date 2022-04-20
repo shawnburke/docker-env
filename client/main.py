@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     state = root.exec(None)
 
-    cli = DockerEnvClient(state.data["user"], state.data["host"], state.data["port"])
+    cli = DockerEnvClient(state.data["user"], state.data.get("jumpbox", "localhost"), state.data["port"])
 
     if not cli.init():
         print(f'Unable to connect to API host {state.data["host"]} on port {state.data["port"]}')
@@ -86,9 +86,15 @@ if __name__ == '__main__':
         "connect": lambda res: cli.connect(res.get("instance")),
         "create": lambda res: cli.create(res.get("name"), res.get("password"), res.get("pubkey_path"), res.get("image")),
         "destroy": lambda res: cli.destroy(res.get("instance")),
+        # "disconnect": lambda res: cli.disconnect(res.get("instance")),
+        "ssh": lambda res: cli.ssh(res.get("instance")),
+        "info": lambda res: cli.get(res.get("instance"))
     }
 
     while True:
+        if not sys.stdin.readable():
+            continue
+
         print(f'{cli.host}> ', end="")
         line = sys.stdin.readline()
         

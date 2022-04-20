@@ -148,7 +148,15 @@ class DockerEnvClient(object):
         ports = instance.get("ports", [])
         if ports is not None:
             for p in ports:
-                print(f'\t{p["label"]}: {p["port"]}')
+                
+                if name in self.connections:
+                    c = self.connections["name"]
+                    message = f'({c.status_message()})'
+
+                if message:
+                    message = f'({message})'
+
+                print(f'\t{p["label"]}: {p["port"]} {message}')
         print('')
         stats = instance.get('container_stats', {})
         mem = stats["memory_stats"]["usage"]
@@ -194,6 +202,9 @@ class DockerEnvClient(object):
         finally:
             sock.close()
 
+    def is_connected(self, name):
+        return name in self.connections
+
     def connect(self, name):
         """
         connect sets up the SSH tunnel to the box, then sets up any 
@@ -218,6 +229,7 @@ class DockerEnvClient(object):
             return
 
         print(f'Successfully connected to {name}')
+        return True
 
     def forward(self, name, label, remote_port, local_port):
         connection = self.connections.get(name)
@@ -237,11 +249,15 @@ class DockerEnvClient(object):
             print(f'Failed to get instance, does it exist?')
             return 
 
+        if not self.is_connected(name) and not self.connect(name):
+            print(f'Failed to connect to {name}')
+            return
+
         ssh_port = instance["ssh_port"]
 
         if not self._is_used(ssh_port):
             print(f'SSH port is not open, run `docker-env connect {name}` first')
-            sys.exit(1)
+            return
 
         command = f'ssh -A -p {ssh_port} {self.user}@localhost'
         print(command)  

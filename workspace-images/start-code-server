@@ -1,7 +1,7 @@
 #! /bin/bash
 
 
-if pgrep -f code-server >/dev/null
+if pgrep -f "lib/code-server" >/dev/null
 then
 	exit 0
 fi

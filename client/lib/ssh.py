@@ -1,6 +1,7 @@
 
 import subprocess
 import shlex
+import sys
 
 MOCK = False
 
@@ -31,19 +32,20 @@ class SSH:
             if self.proc is None:
                 return ""
 
-            stdout, stderr = self.proc.communicate()
+            # stdout, stderr = self.proc.communicate(timeout=1)
 
-            self.stdout += stdout
-            self.stderr += stderr
+            # self.stdout += stdout
+            # self.stderr += stderr
 
-            out = ""
-            if streams in ['both', 'stdout']:
-                out = self.stdout
+            # out = ""
+            # if streams in ['both', 'stdout']:
+            #     out = self.stdout
             
-            if streams in ['both', 'stderr']:
-                out += self.stderr
+            # if streams in ['both', 'stderr']:
+            #     out += self.stderr
 
-            return out
+            # return out
+            return ""
         
         def kill(self):
             if self.is_alive():
@@ -61,9 +63,7 @@ class SSH:
     def command(self, host, remote_port, local_port=None, forward_agent=False):
         args="-NL"
 
-        host = self.host
-        if host is None:
-            host = "localhost"
+        host = host or self.host or "localhost"
 
         if self.user is not None:
             host = f'{self.user}@{host}'
@@ -74,15 +74,18 @@ class SSH:
         if forward_agent:
             args = f'-A {args}'
 
-        return  f'ssh {args} {local_port}:localhost:{local_port} {host}'
+        if local_port is None:
+            local_port = remote_port
+
+        return  f'ssh {args} {local_port}:localhost:{remote_port} {host}'
 
 
-    def forward(self, remote_port, local_port=None, message=None):
+    def forward(self, remote_port, local_port=None):
         """
             creates a port forward via SSH
         """
        
-        command = self.command(remote_port, local_port)
+        command = self.command(self.host, remote_port, local_port)
 
         print(f'\tCommand: {command}')
         if MOCK:
@@ -90,20 +93,20 @@ class SSH:
 
 
         args = shlex.split(command)
-        proc = subprocess.Popen(args)
+        proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
         proc.label = proc
         instance = SSH.SSHInstance(proc)
 
         if not instance.is_alive():
             print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
-            return False
+            return None
 
-        output = instance.output()
+        # output = instance.output()
 
-        if output.contains("known_hosts") or output.contains("fingerprint"):
-            print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
-            print(f'\t{command}')
-            instance.kill()
-            return False
+        # if output.contains("known_hosts") or output.contains("fingerprint"):
+        #     print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
+        #     print(f'\t{command}')
+        #     instance.kill()
+        #     return False
 
-        return True
+        return instance

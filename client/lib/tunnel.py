@@ -52,6 +52,16 @@ class Tunnel:
             self.timer = None
         return None
 
+    def status_message(self):
+        message = "(Not connected)"
+        if self.connected:
+            if self.message:
+                message = self.message.replace("LOCAL_PORT", str(self.local_port))
+            else:
+                message = "(Connected)"
+        return message
+
+
     def _poll(self):
         success = self._check_connection()
         
@@ -62,7 +72,7 @@ class Tunnel:
         if success:    
             print(f'Connected {self.label} as localhost:{self.local_port}')
             if self.message:
-                print(f'\t{self.message.replace("LOCAL_PORT", str(self.local_port))}')
+                print(f'\t{self.status_message()}')
         
             return success
 
@@ -85,13 +95,13 @@ class Tunnel:
             return True
   
         # if port is not open, try to start a tunnel
-        return self._setup_tunnel(self.label, self.remote_port, self.local_port, self.host, self.message)
+        return self._setup_tunnel(self.remote_port, self.local_port, self.host, self.message)
 
-    def _setup_tunnel(self, label, remote_port, local_port, jumpbox=None, message=""):
+    def _setup_tunnel(self, remote_port, local_port, jumpbox=None, message=""):
         
         ssh = SSH(jumpbox, self.ssh_port, self.user)
 
-        self.connection = ssh.forward(remote_port, local_port, message)
+        self.connection = ssh.forward(remote_port, local_port)
         return self.connection.is_alive()
 
         

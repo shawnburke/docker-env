@@ -74,7 +74,9 @@ class RootCommand(Command):
             ListCommand(),
             HelpCommand(),
             CreateCommand(),
+            InfoCommand(),
             ConnectCommand(),
+            SSHCommand(),
             DestroyCommand(),
             QuitCommand(),
         ] )
@@ -151,6 +153,17 @@ class CreateCommand(Command):
             '--image', dest="image", default='docker-env-full:local', help='instance image. Must have SSH avaialble over port 22.')
         return parser
 
+
+class InfoCommand(Command):
+    def __init__(self):
+        super().__init__( "info")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance name to get info for')
+        return parser
+        
+
 class ConnectCommand(Command):
     def __init__(self):
         super().__init__( "connect")
@@ -161,6 +174,15 @@ class ConnectCommand(Command):
         return parser
         
 
+class SSHCommand(Command):
+    def __init__(self):
+        super().__init__( "ssh")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance to ssh to')
+        return parser
+        
 class DestroyCommand(Command):
     def __init__(self):
         super().__init__( "destroy")
