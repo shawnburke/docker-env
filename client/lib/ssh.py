@@ -2,6 +2,7 @@
 import subprocess
 import shlex
 import sys
+import re
 
 MOCK = False
 
@@ -14,7 +15,18 @@ class SSH:
         self.port = port
         self.user = user
 
+    @staticmethod
+    def find_existing(ssh_port, remote_port):
+        proc = subprocess.run(["sh", "-c", f'pgrep -f -l ssh | grep {ssh_port} | grep ":{remote_port}"'],stdout=subprocess.PIPE)
+        if proc.returncode != 0:
+            return None
+        
+        m = re.search(f'(\d+):localhost:{remote_port}', str(proc.stdout))
+        if not m:
+            return None
 
+        return int(m.group(1))        
+        
     class SSHInstance:
         """
             Abstracts an open SSH connection
@@ -69,7 +81,7 @@ class SSH:
             host = f'{self.user}@{host}'
       
         if self.port is not None:
-            args = f'{args} -p {self.port}'
+            args = f'-p {self.port} {args}'
         
         if forward_agent:
             args = f'-A {args}'

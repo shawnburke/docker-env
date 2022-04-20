@@ -1,4 +1,5 @@
 
+from argparse import ArgumentError
 import socket
 from lib.repeating_timer import RepeatingTimer
 from contextlib import closing
@@ -16,6 +17,8 @@ class Tunnel:
         self.label = label
         self.host = host
         self.remote_port = remote_port
+        if not remote_port:
+            raise ArgumentError("remote_port")
         self.local_port = local_port
         self.timer = None
         self.message = message
@@ -28,7 +31,6 @@ class Tunnel:
     def _check_port_open(self) -> bool:
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
             return sock.connect_ex(("0.0.0.0", self.local_port)) == 0
-
    
     def is_connected(self) -> bool:
         return self._check_connection()
@@ -37,7 +39,7 @@ class Tunnel:
         result = self._poll()
 
         if self.timer is None:
-            self.timer = RepeatingTimer(5, self._poll)
+            self.timer = RepeatingTimer(5, self._poll, f'Tunnel {self.label}')
             self.timer.start()
 
         return result
@@ -83,9 +85,30 @@ class Tunnel:
         print(f'Failed to connect to {self.label}')
         return False
       
+    
+    def get_open_port(self):
+        
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("",0))
+        s.listen(1)
+        port = s.getsockname()[1]
+        s.close()
+        return port
+
+    def _ensure_local_port(self):
+        if not self.local_port:
+            self.local_port = SSH.find_existing(self.ssh_port, self.remote_port)
+
+        if not self.local_port:
+            self.local_port = self.get_open_port()
+
+        return self.local_port
 
     def _check_connection(self):
 
+        if not self._ensure_local_port():
+            return False 
+            
         
         # If port is open, do nothing
         if self._check_port_open():
@@ -95,13 +118,8 @@ class Tunnel:
             return True
   
         # if port is not open, try to start a tunnel
-        return self._setup_tunnel(self.remote_port, self.local_port, self.host, self.message)
-
-    def _setup_tunnel(self, remote_port, local_port, jumpbox=None, message=""):
-        
-        ssh = SSH(jumpbox, self.ssh_port, self.user)
-
-        self.connection = ssh.forward(remote_port, local_port)
+        ssh = SSH(self.host, self.ssh_port, self.user)
+        self.connection = ssh.forward(self.remote_port, self.local_port)
         return self.connection.is_alive()
 
         

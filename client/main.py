@@ -2,6 +2,7 @@
 import sys
 import shlex
 
+
 from lib.client import DockerEnvClient
 from lib.commands import RootCommand
 
@@ -25,51 +26,6 @@ if __name__ == '__main__':
     #       * periodically polls for other ports, if found, it connect to them eg ssh -p SSH_PORT -NL PORT:localhost:PORT user@localhost
     #       * Announces "Connected my-instance VSCode Browser as port 1234"
 
-    # # 
-    # # destroy instance
-    # #
-    # parser_destroy = sub_parsers.add_parser(
-    #     'destroy', help='destroy an instance')
-    # parser_destroy.add_argument(
-    #     dest='destroy_name', nargs='?', help='name to instance to destroy')
-
-    # #
-    # # Connect via a jumpbox
-    # #
-    # parser_tunnel = sub_parsers.add_parser('connect', help='tunnel to instance jumpbox')
-    # parser_tunnel.add_argument(dest='tunnel_name', help='name of instance')
-    # parser_tunnel.add_argument(
-    #     dest='tunnel_jumpbox', 
-    #     nargs="?", 
-    #     help='ssh target of jumpbox instance, e.g. somebox.foo.com or username@somebox')
-
-    # #
-    # # SSH shell into instance
-    # #
-    # parser_ssh = sub_parsers.add_parser(
-    #     'ssh', help='open a command prompt to the instance')
-    # parser_ssh.add_argument(dest='ssh_name', nargs='?', help='name of instance')
-
-
-
-    # args = parser.parse_args()
-
-    
-    # if args.command_name == 'ls':
-    #     cli.list()
-    # elif args.command_name == 'create':
-    #     cli.create(args.create_name, password=args.create_password, pubkey_path=args.create_pubkey_path, image=args.create_image)
-    # elif args.command_name == 'info':
-    #     cli.get(args.info_name)
-    # elif args.command_name == 'destroy':
-    #     cli.destroy(args.destroy_name)
-    # elif args.command_name == 'ssh':
-    #     cli.ssh(args.ssh_name)
-    # elif args.command_name == 'connect':
-    #     cli.connect(args.tunnel_name, args.tunnel_jumpbox)
-
-    # args = parser.parse_args()
-
     root = RootCommand()
 
     state = root.exec(None)
@@ -86,38 +42,38 @@ if __name__ == '__main__':
         "connect": lambda res: cli.connect(res.get("instance")),
         "create": lambda res: cli.create(res.get("name"), res.get("password"), res.get("pubkey_path"), res.get("image")),
         "destroy": lambda res: cli.destroy(res.get("instance")),
-        # "disconnect": lambda res: cli.disconnect(res.get("instance")),
+        "disconnect": lambda res: cli.disconnect(res.get("instance")),
         "ssh": lambda res: cli.ssh(res.get("instance")),
-        "info": lambda res: cli.get(res.get("instance"))
+        "info": lambda res: cli.get(res.get("instance")),
+        "quit": lambda res: cli.stop()
     }
 
-    while True:
-        if not sys.stdin.readable():
-            continue
+    try:
+        while True:
+            print(f'{cli.host}> ', end="", flush=True)
+            line = sys.stdin.readline()
+            line = line.rstrip()
 
-        print(f'{cli.host}> ', end="")
-        line = sys.stdin.readline()
-        
-        line = line.rstrip()
+            args = shlex.split(line)
 
-        args = shlex.split(line)
+            if len(args) == 0:
+                continue
 
-        if len(args) == 0:
-            continue
+            command = root.find(args[0])
+            if command is None:
+                continue
 
-        command = root.find(args[0])
-        if command is None:
-            continue
+            result = command.exec(args[1:])
 
-        result = command.exec(args[1:])
+            if result is None:
+                continue
 
-        if result is None:
-            continue
+            target = commands.get(result.command)
 
-        target = commands.get(result.command)
+            if target is None:
+                print(f' Unknown command: {command}')
+                continue
 
-        if target is None:
-            print(f' Unknown command: {command}')
-            continue
-
-        target(result)
+            target(result)
+    except KeyboardInterrupt:
+        cli.stop()

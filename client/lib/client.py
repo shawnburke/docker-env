@@ -3,6 +3,7 @@ import http.client
 import json
 import sys
 import socket
+from threading import local
 
 from lib.tunnel import Tunnel
 from lib.connection import Connection
@@ -62,10 +63,15 @@ class DockerEnvClient(object):
             conn.close()
 
     def init(self):
-        
         self.api_tunnel = Tunnel("API", self.host, 3001, self.port)
-        # self.ports[self.port] = api_tunnel
         return self.api_tunnel.start()
+
+    def stop(self, code=0):
+        for c in self.connections.values():
+            c.stop()
+        if self.api_tunnel:
+            self.api_tunnel.stop()
+        sys.exit(code)
 
     def create(self, name, password=None, pubkey_path=None, image=None):
         """
@@ -148,15 +154,20 @@ class DockerEnvClient(object):
         ports = instance.get("ports", [])
         if ports is not None:
             for p in ports:
-                
+                port = p.get("remote_port") 
+                message = ""
                 if name in self.connections:
-                    c = self.connections["name"]
-                    message = f'({c.status_message()})'
+                    c = self.connections[name]
+                    t = c.tunnel_for_port(port)
+                    if t:
+                        message = f'{t.status_message()}'
+                        port = t.local_port
+
 
                 if message:
                     message = f'({message})'
 
-                print(f'\t{p["label"]}: {p["port"]} {message}')
+                print(f'\t{p["label"]}: {port} {message}')
         print('')
         stats = instance.get('container_stats', {})
         mem = stats["memory_stats"]["usage"]
@@ -178,14 +189,14 @@ class DockerEnvClient(object):
             print(format_str.format("----", "------", "-----------"))
             show_connected = False
             for instance in instances:
-                ssh="n/a"
-                if instance["status"] == "running":
-                    ssh = f'ssh -p {instance["ssh_port"]} {instance["user"]}@localhost'
+                ssh="not connected"
                 status = instance["status"]
                 name = instance["name"]
                 if name in self.connections:
                     status = f'{status} (*)'
                     show_connected = True
+                    ssh = f'ssh -p {instance["ssh_port"]} {instance["user"]}@localhost'
+                
                 print(format_str.format(name ,status, ssh))
 
             if show_connected:
@@ -231,15 +242,26 @@ class DockerEnvClient(object):
         print(f'Successfully connected to {name}')
         return True
 
-    def forward(self, name, label, remote_port, local_port):
+    def disconnect(self, name):
+        connection = self.connections.get(name)
+        
+        if connection is not None:
+            connection.stop()
+            del self.connections[name]
+            print(f'Disconnected from {name}')
+            return
+
+        print(f'No connection exists for {name}')
+
+    def forward(self, name, label, remote_port, local_port=None):
         connection = self.connections.get(name)
         if connection is None:
             self.connect(name)
-            if not name in self.connections:
+            if name not in self.connections:
                 print(f'Unable to connect to {name}')
         connection = self.connections.get(name)
         
-        connection.forward_port(label, remote_port)
+        connection.forward_port(label, remote_port=remote_port, local_port=local_port)
 
 
     def ssh(self, name):

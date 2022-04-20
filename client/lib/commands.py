@@ -6,6 +6,8 @@ from multiprocessing.dummy import Array
 import sys
 import shlex
 import os
+
+from numpy import isin
 from lib.client import DockerEnvClient
 
 
@@ -22,9 +24,6 @@ class CommandResult:
         if hasattr(self.data, field):
             return getattr(self.data, field,default)
         return self.data.get(field, default)
-
-
-
 class Command:
     def __init__(self, name, commands = None):
         self.name = name
@@ -45,6 +44,8 @@ class Command:
 
 
     def command(self, name, args) -> 'CommandResult':
+        if isinstance(name, list):
+            name = name[0]
         return CommandResult(name, args)
 
     def handles(self, cmd):
@@ -76,6 +77,7 @@ class RootCommand(Command):
             CreateCommand(),
             InfoCommand(),
             ConnectCommand(),
+            DisconnectCommand(),
             SSHCommand(),
             DestroyCommand(),
             QuitCommand(),
@@ -122,7 +124,7 @@ class HelpCommand(Command):
         return None
 
     def command(self, name, args) -> 'CommandResult':
-        print("Available commands: ls, create, destroy, connect")
+        print("Available commands: ls, create, info, ssh, connect, disconnect, destroy, quit")
         return None
 
 
@@ -131,11 +133,8 @@ class QuitCommand(Command):
         super().__init__(["quit", "exit"])
 
     def parser(self):
+        print("Cleaning up tunnels...")
         return None
-
-    def command(self,name, args) -> 'CommandResult':
-        print("")
-        sys.exit(0)
 
 class CreateCommand(Command):
     def __init__(self):
@@ -171,6 +170,16 @@ class ConnectCommand(Command):
     def parser(self):
         parser = argparse.ArgumentParser(prog=self.name)
         parser.add_argument("instance", help='Instance to connect to')
+        return parser
+        
+
+class DisconnectCommand(Command):
+    def __init__(self):
+        super().__init__( "disconnect")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name, description="disconnects tunnels from an instance")
+        parser.add_argument("instance", help='Instance to disconnect')
         return parser
         
 

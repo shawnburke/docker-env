@@ -1,10 +1,11 @@
 from threading import Timer
 
 class RepeatingTimer(Timer):
-    def __init__(self, interval, function):
+    def __init__(self, interval, function, name=None):
         super().__init__(interval, self._tick)
         self.function = function
         self.running = False
+        self.name = name
 
     def _tick(self):
         self.function()
