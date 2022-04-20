@@ -73,7 +73,8 @@ class Connection:
         tunnel = self.ports.get(port)
         if tunnel is None:
             tunnel = Tunnel(label, "localhost", port, port, message, ssh_port=self.tunnel.local_port, user=self.user)
-
+            self.ports[port] = tunnel
+            
         if tunnel.start():
             return port
 

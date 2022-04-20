@@ -219,6 +219,15 @@ class DockerEnvClient(object):
 
         print(f'Successfully connected to {name}')
 
+    def forward(self, name, label, remote_port, local_port):
+        connection = self.connections.get(name)
+        if connection is None:
+            self.connect(name)
+            if not name in self.connections:
+                print(f'Unable to connect to {name}')
+        connection = self.connections.get(name)
+        
+        connection.forward_port(label, remote_port)
 
 
     def ssh(self, name):
