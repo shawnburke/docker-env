@@ -1,7 +1,8 @@
 
 import subprocess
+import shlex
 
-MOCK = True
+MOCK = False
 
 class SSH:
     """
@@ -30,7 +31,7 @@ class SSH:
             if self.proc is None:
                 return ""
 
-            stdout, stderr = self.proc.communicate();
+            stdout, stderr = self.proc.communicate()
 
             self.stdout += stdout
             self.stderr += stderr
@@ -57,11 +58,7 @@ class SSH:
 
             self.proc.wait()
 
-
-    def forward(self, remote_port, local_port=None, message=None):
-        """
-            creates a port forward via SSH
-        """
+    def command(self, host, remote_port, local_port=None, forward_agent=False):
         args="-NL"
 
         host = self.host
@@ -73,14 +70,27 @@ class SSH:
       
         if self.port is not None:
             args = f'{args} -p {self.port}'
+        
+        if forward_agent:
+            args = f'-A {args}'
 
+        return  f'ssh {args} {local_port}:localhost:{local_port} {host}'
+
+
+    def forward(self, remote_port, local_port=None, message=None):
+        """
+            creates a port forward via SSH
+        """
+       
+        command = self.command(remote_port, local_port)
+
+        print(f'\tCommand: {command}')
         if MOCK:
-            print(f'\tCommand: ssh {args} {local_port}:localhost:{local_port} {host}')
             return SSH.SSHInstance(None)
 
 
-
-        proc = subprocess.Popen(["ssh",args, f'{local_port}:localhost:{remote_port}', host])
+        args = shlex.split(command)
+        proc = subprocess.Popen(args)
         proc.label = proc
         instance = SSH.SSHInstance(proc)
 
@@ -92,12 +102,8 @@ class SSH:
 
         if output.contains("known_hosts") or output.contains("fingerprint"):
             print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
-            print(f'\tssh {args} {local_port}:localhost:{local_port} {jumpbox}')
+            print(f'\t{command}')
             instance.kill()
             return False
 
-        print(f'Connected {label} as localhost:{local_port}')
-        if message:
-            print(f'\tMessage: {message}')
-        
         return True

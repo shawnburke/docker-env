@@ -201,7 +201,10 @@ class DockerEnvClient(object):
         """
 
         info = self._get_instance(name)
-
+        if info is None:
+            print(f'Can not find running instance {name}')
+            return 
+    
         host = info.get("host", self.host)
         
         connection = self.connections.get(name)

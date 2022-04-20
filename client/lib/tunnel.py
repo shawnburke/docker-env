@@ -1,7 +1,6 @@
 
 import socket
-import subprocess
-import threading
+from lib.repeating_timer import RepeatingTimer
 from contextlib import closing
 from lib.ssh import SSH
 
@@ -9,7 +8,9 @@ from lib.ssh import SSH
 class Tunnel:
     """
         Tunnel abstracts a connection to another box either directly
-        or via SSH
+        or via SSH, and check for open port if it already exists.
+
+        On disconnection it will attempt to reconnect
     """
     def __init__(self, label, host, remote_port, local_port, message = None, ssh_port=None, user=None):
         self.label = label
@@ -36,7 +37,7 @@ class Tunnel:
         result = self._poll()
 
         if self.timer is None:
-            self.timer = threading.Timer(5, self._poll)
+            self.timer = RepeatingTimer(5, self._poll)
             self.timer.start()
 
         return result
@@ -56,16 +57,21 @@ class Tunnel:
         
         if success == self.connected:
             return success
-
+        was_connected = self.connected
         self.connected = success
-        if success:
+        if success:    
             print(f'Connected {self.label} as localhost:{self.local_port}')
             if self.message:
-                print(f'\tMessage: {self.message}')
+                print(f'\t{self.message.replace("LOCAL_PORT", str(self.local_port))}')
+        
             return success
+
+        if was_connected:
+            print(f'Lost connection to {self.label} ({self.local_port}, will retry')
+            return False
         
         print(f'Failed to connect to {self.label}')
-        return success
+        return False
       
 
     def _check_connection(self):
@@ -77,8 +83,7 @@ class Tunnel:
 
         if self.connection is not None and self.connection.is_alive():
             return True
-
-        
+  
         # if port is not open, try to start a tunnel
         return self._setup_tunnel(self.label, self.remote_port, self.local_port, self.host, self.message)
 

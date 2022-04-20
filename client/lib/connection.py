@@ -1,6 +1,5 @@
 
-from email.errors import FirstHeaderLineIsContinuationDefect
-from threading import Timer
+from lib.repeating_timer import RepeatingTimer
 from lib.tunnel import Tunnel
 
    
@@ -12,7 +11,7 @@ class Connection:
         self.get_instance = get_instance
         self.tunnel = None
         self.ports = {}
-        self.timer = Timer(5, self._poll)
+        self.timer = RepeatingTimer(5, self._poll)
 
     def start(self):
         if self.is_alive():

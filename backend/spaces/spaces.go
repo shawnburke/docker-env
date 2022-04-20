@@ -74,6 +74,7 @@ func (ns NewSpace) PubKeyEncoded() string {
 type Instance struct {
 	User           string          `json:"user"`
 	Name           string          `json:"name"`
+	Host           string          `json:"host,omitempty"`
 	SshPort        int             `json:"ssh_port"`
 	Ports          []instancePort  `json:"ports,omitempty"`
 	Status         string          `json:"status"`
@@ -398,7 +399,7 @@ func (dcm *dockerComposeManager) getOpenPorts(ns *types.NetworkSettings) []insta
 	// walk for open ports
 	for _, ip := range ports {
 		exPort := getPort(ip.localPort, ns.Ports)
-		if check_open(ip.Label, gateway, exPort) {
+		if check_open(ip.Label, "localhost", exPort) || check_open(ip.Label, gateway, exPort) {
 			ip.Port = exPort
 			iPorts = append(iPorts, ip)
 		}
@@ -595,7 +596,7 @@ func createDockerCompose(space NewSpace) (string, error) {
 		return "", err
 	}
 
-	return string(buf.Bytes()), nil
+	return buf.String(), nil
 
 }
 
