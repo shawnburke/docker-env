@@ -66,7 +66,7 @@ class Connection:
         if port in self.ports:
             return self.ports[port]
 
-        return "Unknown port"
+        return None
     
     def forward_port(self, label, remote_port, local_port = 0, message=None, check_ssh=True) -> int:
 

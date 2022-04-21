@@ -152,16 +152,19 @@ class DockerEnvClient(object):
         print(f'Instance {instance["name"]} is {instance["status"]}')
         print(f'\tSSH Port: {instance["ssh_port"]}')
         ports = instance.get("ports", [])
+
+        c = None
+        if name in self.connections:
+            c = self.connections[name]
+                
         if ports is not None:
             for p in ports:
                 port = p.get("remote_port") 
                 message = ""
-                if name in self.connections:
-                    c = self.connections[name]
-                    t = c.tunnel_for_port(port)
-                    if t:
-                        message = f'{t.status_message()}'
-                        port = t.local_port
+                t = c and c.tunnel_for_port(port)
+                if t:
+                    message = f'{t.status_message()}'
+                    port = t.local_port
 
 
                 if message:
@@ -169,11 +172,14 @@ class DockerEnvClient(object):
 
                 print(f'\t{p["label"]}: {port} {message}')
         print('')
-        stats = instance.get('container_stats', {})
         mem = stats["memory_stats"]["usage"]
         print(f'\tMemory: {mem / (1024*1024)}mb')
         cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
         print(f'\tCPU: {cpu / 1000000000} cores (WIP! {cpu})')
+        print('')
+        if not c:
+            print(f'Not connected, \'connect {name}\' to connect tunnels.')
+        stats = instance.get('container_stats', {})
 
     def list(self):
         response = self._request("")

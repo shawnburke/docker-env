@@ -1,6 +1,7 @@
 #! /bin/bash
 
 tag=docker-env-server:local
+args=""
 
 while getopts ":hrd" opt; do
   case ${opt} in
@@ -32,8 +33,6 @@ if docker rm -f $container_name
 then
   echo "Removed old container"
 fi
-
-args=""
 
 if [ -n "$DNS_SEARCH" ]
 then

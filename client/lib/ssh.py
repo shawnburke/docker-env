@@ -99,8 +99,8 @@ class SSH:
        
         command = self.command(self.host, remote_port, local_port)
 
-        print(f'\tCommand: {command}')
         if MOCK:
+            print(f'\tCommand: {command}')
             return SSH.SSHInstance(None)
 
 
