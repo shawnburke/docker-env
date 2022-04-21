@@ -55,8 +55,8 @@ RUN pip3 install projector-installer
 
 # Add VSCode-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
-COPY start-code-server /usr/local/bin
-RUN chmod +x /usr/local/bin/start-code-server
+COPY start-code-server start-projector /usr/local/bin
+RUN chmod +x /usr/local/bin/start-*
 COPY install-projector /usr/local/bin
 RUN chmod +x /usr/local/bin/install-projector
 

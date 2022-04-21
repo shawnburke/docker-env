@@ -1,0 +1,21 @@
+#! /bin/bash
+
+
+if pgrep -f "projector" >/dev/null
+then
+	exit 0
+fi
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+if [ "$1" == "launch" ]
+then
+	while true
+	do
+		mkdir -p ~/.log
+		projector run >> ~/.log/code-server.log
+	done
+fi
+
+(nohup $SCRIPT_DIR/start-projector launch &) 2>/dev/null
+
+
