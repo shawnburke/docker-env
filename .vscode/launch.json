@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/client/main.py",
-            "args": ["localhost"],
+            "args": ["kraken-dev-941"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
