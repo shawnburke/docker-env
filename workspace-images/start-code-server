@@ -1,6 +1,12 @@
 #! /bin/bash
 
 
+if [ "$1" == "check" ]
+then
+        pgrep -f -l -a  "lib/code-server"
+        exit 0
+fi
+
 if pgrep -f "lib/code-server" >/dev/null
 then
 	exit 0

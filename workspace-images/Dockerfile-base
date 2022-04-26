@@ -52,13 +52,14 @@ RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
 
 # Install projector
 RUN pip3 install projector-installer
+COPY install-projector /usr/local/bin
+RUN chmod +x /usr/local/bin/install-projector
+COPY projector.config.ini /user/local/bin/config.ini
 
 # Add VSCode-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 COPY start-code-server start-projector /usr/local/bin/
 RUN chmod +x /usr/local/bin/start-*
-COPY install-projector /usr/local/bin
-RUN chmod +x /usr/local/bin/install-projector
 
 RUN echo "/usr/local/bin/start-code-server" >> /etc/profile.d/code-server.sh
 

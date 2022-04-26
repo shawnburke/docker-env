@@ -2,18 +2,9 @@
 from abc import abstractmethod
 import argparse
 from dataclasses import dataclass
-from multiprocessing.dummy import Array
-import sys
-import shlex
 import os
 
-from numpy import isin
-from lib.client import DockerEnvClient
-
-
-
-default_port=3001
-
+DEFAULT_PORT=3001
 
 @dataclass
 class CommandResult:
@@ -60,10 +51,16 @@ class Command:
         return False
 
     def find(self, cmd) -> 'Command':
+        a = []
         for c in self.commands:
+            a.append(str(c.name))
             if c.handles(cmd):
                 return c
-        print(f'Unknown command {self.name}.{cmd}')
+        av = ""
+
+        if len(a) > 0:
+            av = f', try: {",".join(a)}'
+        print(f'Unknown command {self.name}.{cmd} {av}')
 
 
 
@@ -87,7 +84,7 @@ class RootCommand(Command):
     def parser(self):
 
         host=os.environ.get("HOST", "localhost")
-        port=os.environ.get("PORT", default_port)
+        port=os.environ.get("PORT", DEFAULT_PORT)
 
         # create the top-level parser
         parser = argparse.ArgumentParser(prog='docker-env')

@@ -10,4 +10,5 @@ pushd backend
 ./start -r -d docker-env-server
 popd
 
+echo "Server is now running as daemon, tailing logs..."
 docker logs -f docker-env-server

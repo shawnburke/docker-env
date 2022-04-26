@@ -1,7 +1,6 @@
 
 from lib.repeating_timer import RepeatingTimer
 from lib.tunnel import Tunnel
-import socket
 
    
 class Connection:

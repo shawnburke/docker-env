@@ -3,7 +3,6 @@ import http.client
 import json
 import sys
 import socket
-from threading import local
 
 from lib.tunnel import Tunnel
 from lib.connection import Connection
@@ -121,6 +120,7 @@ class DockerEnvClient(object):
         status_code = response["status"]
         
         if status_code == 200:
+            self.disconnect(name)
             print("Successfully deleted instance")
         elif status_code == 404:
             print(f'Unknown instance "{name}"')

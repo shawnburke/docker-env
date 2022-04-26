@@ -1,21 +1,44 @@
 #! /bin/bash
 
 
-if pgrep -f "projector" >/dev/null
+if [ "$1" == "check" ]
 then
-	exit 0
+        pgrep -f -a -l ".projector/apps"
+        exit 0
 fi
+
+if pgrep -f ".projector/apps" >/dev/null
+then
+        exit 0
+fi
+
+set -x
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 if [ "$1" == "launch" ]
 then
-	while true
-	do
-		mkdir -p ~/.log
-		projector run >> ~/.log/code-server.log
-	done
+
+        # # ensure config
+        # config_dir=~/.projector/configs/IntelliJ
+        # if [ ! -f $config_dir/config.ini ]
+        # then
+        #         mkdir -p $config_dir
+        #         # expand user, etc - note this isn't working yet
+        #         eval  "echo \"$(cat $SCRIPT_DIR/projector.config.ini)\"" > $config_dir/config.example.ini
+        # fi
+
+        COUNTER=5
+        while true
+        do
+                if [ $COUNTER -lt 0 ]
+                then
+                        echo "5 or more failures, quitting"
+                        exit 1
+                fi
+                mkdir -p ~/.log
+                projector --accept-license run  >> ~/.log/projector.log
+                COUNTER--
+        done
 fi
 
 (nohup $SCRIPT_DIR/start-projector launch &) 2>/dev/null
-
-

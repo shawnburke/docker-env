@@ -1,7 +1,4 @@
 from threading import Thread, Event
-
-from sqlalchemy import true
-
 class RepeatingTimer(Thread):
     def __init__(self, interval, function, name=None):
         super().__init__(target=self._tick)
