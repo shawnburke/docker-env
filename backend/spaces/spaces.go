@@ -368,41 +368,27 @@ func check_open(label, host string, port int) bool {
 	return true
 }
 
-func (dcm *dockerComposeManager) getOpenPorts(ns *types.NetworkSettings) []instancePort {
+func (dcm *dockerComposeManager) getOpenPorts(payload string) []instancePort {
+
+	exp := regexp.MustCompile(`(?m)(\d+)=(.*?)(\|(.*))?$`)
 
 	iPorts := []instancePort{}
+	matches := exp.FindAllStringSubmatch(payload, -1)
+	for _, match := range matches {
 
-	if ns == nil {
-		return iPorts
-	}
-
-	gateway := ""
-	for _, n := range ns.Networks {
-		gateway = n.Gateway
-		break
-	}
-
-	ports := []instancePort{
-		{
-			RemotePort: 8080,
-			Label:      "VSCode Browser",
-			Message:    "Connect to VSCode browser at http://localhost:LOCAL_PORT",
-		},
-		{
-			RemotePort: 9999,
-			Label:      "IntelliJ Projector",
-			Message:    "Connect to IntelliJ browser at http://localhost:LOCAL_PORT",
-		},
-	}
-
-	// walk for open ports
-	for _, ip := range ports {
-		exPort := getPort(ip.RemotePort, ns.Ports)
-		if check_open(ip.Label, "localhost", exPort) || check_open(ip.Label, gateway, exPort) {
-			ip.Port = exPort
-			iPorts = append(iPorts, ip)
+		port, err := strconv.Atoi(match[1])
+		if err != nil {
+			log.Printf("Couldn't parse port: %q", match[1])
+			continue
 		}
+
+		iPorts = append(iPorts, instancePort{
+			RemotePort: port,
+			Label:      match[2],
+			Message:    match[4],
+		})
 	}
+
 	return iPorts
 }
 
@@ -420,13 +406,12 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 		return Instance{}, os.ErrNotExist
 	}
 
-	// check status
 	cli, err := dcm.client()
 	if err != nil {
 		return Instance{}, err
 	}
-
 	key := fmt.Sprintf("space-%s-%s", i.User, i.Name)
+
 	j, err := cli.ContainerInspect(context.Background(), key)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error inspecting %q: %v", key, err)
@@ -436,7 +421,20 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 	i.Status = j.State.Status
 
-	i.Ports = dcm.getOpenPorts(j.NetworkSettings)
+	// check open ports
+
+	output := &bytes.Buffer{}
+
+	cmd := exec.Command("docker", "exec", key, "open-ports")
+	cmd.Stdout = output
+	cmd.Stderr = output
+	err = cmd.Run()
+
+	if err != nil {
+		return Instance{}, fmt.Errorf("Error running docker exec: %v", output.String())
+	}
+
+	i.Ports = dcm.getOpenPorts(output.String())
 
 	if stats {
 

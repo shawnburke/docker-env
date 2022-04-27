@@ -11,6 +11,7 @@ class Connection:
         self.get_instance = get_instance
         self.tunnel = None
         self.ports = {}
+        self.portmap = {}
         self.timer = RepeatingTimer(5, self._poll, f'Connection {name}')
 
     def start(self):
@@ -53,11 +54,29 @@ class Connection:
                 return False
 
         # walk the other ports
+        seen = {}
         for port_info in instance.get("ports", []):
             remote_port = port_info["remote_port"]
-
-            if 0 == self.forward_port(port_info["label"], remote_port, message=port_info.get("message"), check_ssh=False):
+            local_port = self.portmap.get(remote_port, 0)
+            local_port = self.forward_port(port_info["label"], remote_port,local_port=local_port, message=port_info.get("message"), check_ssh=False)
+            
+            if 0 == local_port:
                 print(f'Failed to start connection to {self.name} port {self.host}:{remote_port}')
+                continue
+
+            self.portmap[remote_port] = local_port
+            seen[remote_port] = local_port
+
+        # check for closed ports
+        keys = list(self.ports.keys())
+        for remote_port in keys:
+            if remote_port in seen:
+                continue
+            tunnel = self.ports[remote_port]
+
+            print(f'Closing tunnel to port {tunnel.local_port} (Remote port {remote_port}) as it seems to be no longer open.')
+            tunnel.stop()
+            del self.ports[remote_port]
 
         return True
 

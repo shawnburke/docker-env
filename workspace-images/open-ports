@@ -1,0 +1,47 @@
+#! /bin/bash
+
+# Scans for open ports and returns a map of them like
+# 1234=Webapp
+# 8080=Code Server
+# 3441=Port 3441
+#
+# Names can be defined in a portfile at /opt/ports that has format like
+#
+# port=label|message
+#
+# where "|message" is optional and will replace placeholder LOCAL_PORT
+
+portmap=
+portfile=/opt/ports
+if [ -f "$1" ]
+then
+	portfile=$1
+fi
+
+if [ -f $portfile ]
+then
+	portmap=$(cat $portfile)
+fi
+
+# gets the open ports in a list
+ports=$( netstat -lnt | grep -oE "0.0.0.0:[0-9]+" |
+	awk -F: '{print $2}')
+
+# walk them
+echo "$ports" | while read port
+do
+	if [ "22" == "$port" ]
+	then
+		continue
+	fi
+
+	label="Port $port"
+	if mapped=$(echo "$portmap" | grep "$port=")
+	then
+		echo "$mapped"
+		continue
+	fi
+	echo "$port=$label"
+done
+
+

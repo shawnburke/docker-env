@@ -46,8 +46,7 @@ RUN grep JAVA_HOME /etc/environment || printf "JAVA_HOME=/opt/java\nPATH=$JAVA_H
 
 # Clean up
 RUN apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean -y
 
 
 

@@ -154,3 +154,16 @@ func TestCheckOpenPort(t *testing.T) {
 	l.Close()
 
 }
+
+func TestParseOpenPorts(t *testing.T) {
+	payload := `8080=label|msg
+	3000=My webserver
+	`
+
+	dcm := &dockerComposeManager{}
+	ports := dcm.getOpenPorts(payload)
+
+	require.Len(t, ports, 2)
+	require.Equal(t, 8080, ports[0].RemotePort)
+	require.Equal(t, "msg", ports[0].Message)
+}

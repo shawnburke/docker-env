@@ -10,7 +10,7 @@ RUN apt-get update && \
       bash \
       build-essential \
       ca-certificates \
-      curl iputils-ping dnsutils \
+      curl iputils-ping dnsutils net-tools \
       docker.io \
       htop \
       locales \
@@ -50,16 +50,20 @@ RUN curl -L "https://download.jetbrains.com/product?code=IIC&latest&distribution
 # # Add a binary to the PATH that points to the intellij startup script.
 RUN ln -s /opt/idea/bin/idea.sh /usr/bin/intellij-idea-community
 
+COPY open-ports /usr/local/bin
+
 # Install projector
 RUN pip3 install projector-installer
 COPY install-projector /usr/local/bin
 RUN chmod +x /usr/local/bin/install-projector
 COPY projector.config.ini /user/local/bin/config.ini
+RUN echo "9999=JetBrains Projector|http://localhost:LOCAL_PORT" >>/opt/ports
 
 # Add VSCode-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 COPY start-code-server start-projector /usr/local/bin/
 RUN chmod +x /usr/local/bin/start-*
+RUN echo "8080=VSCode Browser|Connect to http://localhost:LOCAL_PORT" >>/opt/ports
 
 RUN echo "/usr/local/bin/start-code-server" >> /etc/profile.d/code-server.sh
 
