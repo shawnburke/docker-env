@@ -33,17 +33,16 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tz
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN wget https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz && tar xvf openjdk-17.0.2_linux-x64_bin.tar.gz && mv jdk-17.0.2/ /opt/jdk-17/
+# Install java versions 11 & 17
+RUN wget -O jdk17.tar.gz https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz && tar xvf jdk17.tar.gz && mv jdk-17.0.2/ /opt/jdk-17/
+RUN wget -O jdk11.tar.gz https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz && tar xvf jdk11.tar.gz && mv jdk-11.0.2/ /opt/jdk-11/
+RUN ln -s /opt/jdk-17 /opt/java
+RUN ln -s /opt/java/bin/java /usr/local/bin/java
 
-
-
-
-ENV JAVA_HOME=/opt/jdk-17
+ENV JAVA_HOME=/opt/java
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
-RUN echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
-RUN echo "PATH=$JAVA_HOME/bin:$PATH" >> /etc/environment
-
+RUN grep JAVA_HOME /etc/environment || printf "JAVA_HOME=/opt/java\nPATH=$JAVA_HOME/bin:$PATH\n" >> /etc/environment
 
 # Clean up
 RUN apt-get autoremove -y \
