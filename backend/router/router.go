@@ -46,6 +46,7 @@ func New(manager spaces.Manager) http.Handler {
 	spaces.HandleFunc("/{user}", ret.createSpace).Methods("POST")
 	spaces.HandleFunc("/{user}", ret.listSpaces).Methods("GET")
 	spaces.HandleFunc("/{user}/{name}", ret.getSpace).Methods("GET")
+	spaces.HandleFunc("/{user}/{name}/restart", ret.restartSpace).Methods("POST")
 	spaces.HandleFunc("/{user}/{name}", ret.removeSpace).Methods("DELETE")
 
 	return ret
@@ -177,6 +178,25 @@ func (r *router) getSpace(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(raw)
+}
+
+func (r *router) restartSpace(w http.ResponseWriter, req *http.Request) {
+
+	vars := mux.Vars(req)
+	user := vars["user"]
+	name := vars["name"]
+
+	err := r.manager.Restart(user, name)
+
+	if os.IsNotExist(err) {
+		w.WriteHeader(404)
+		return
+	}
+
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+	}
 }
 
 func (r *router) removeSpace(w http.ResponseWriter, req *http.Request) {

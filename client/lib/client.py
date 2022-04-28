@@ -290,3 +290,20 @@ class DockerEnvClient(object):
         command = f'ssh -A -p {ssh_port} {self.user}@localhost'
         print(command)  
         os.system(command)
+
+    def restart(self, name):
+        instance = self._get_instance(name)
+
+        if instance is None:
+            print(f'Can\'t find instance {name}')
+            return
+
+        print('Restarting instance, this may take a bit...', end="")
+        response = self._request(f'/{name}/restart', "POST")
+        status_code = response["status"]
+        if status_code == 200:
+            print("done")
+        else:
+            print(f'failed: status={status_code}')
+
+    

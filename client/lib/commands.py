@@ -73,6 +73,7 @@ class RootCommand(Command):
             HelpCommand(),
             CreateCommand(),
             InfoCommand(),
+            RestartCommand(),
             ConnectCommand(),
             DisconnectCommand(),
             SSHCommand(),
@@ -159,6 +160,14 @@ class InfoCommand(Command):
         parser.add_argument("instance", help='Instance name to get info for')
         return parser
         
+class RestartCommand(Command):
+    def __init__(self):
+        super().__init__( "restart")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance name restart')
+        return parser
 
 class ConnectCommand(Command):
     def __init__(self):

@@ -45,6 +45,7 @@ if __name__ == '__main__':
         "disconnect": lambda res: cli.disconnect(res.get("instance")),
         "ssh": lambda res: cli.ssh(res.get("instance")),
         "info": lambda res: cli.get(res.get("instance")),
+        "restart": lambda res: cli.restart(res.get("instance")),
         "quit": lambda res: cli.stop()
     }
 

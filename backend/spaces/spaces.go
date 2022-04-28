@@ -92,6 +92,7 @@ type Manager interface {
 	Get(user, name string, stats bool) (Instance, error)
 	Stop(user, name string) error
 	Kill(user, name string) error
+	Restart(user, name string) error
 }
 
 const DefaultImageName = "docker-env-base:local"
@@ -201,6 +202,19 @@ func (dcm *dockerComposeManager) pickName(user string) string {
 	return ""
 }
 
+func (dcm *dockerComposeManager) dockerCompose(dir string, args ...string) (string, error) {
+	output := &bytes.Buffer{}
+
+	cmd := exec.Command("docker-compose", args...)
+	cmd.Dir = dir
+	cmd.Stdout = output
+	cmd.Stderr = output
+
+	err := cmd.Run()
+
+	return output.String(), err
+}
+
 func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, error) {
 
 	if space.Name == "" {
@@ -258,19 +272,14 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	if err != nil {
 		return nil, err.Error(), err
 	}
-	output := &bytes.Buffer{}
 
 	log.Printf("Starting space")
-	cmd := exec.Command("docker-compose", "up", "-d")
-	cmd.Dir = dir
-	cmd.Stdout = output
-	cmd.Stderr = output
 
-	err = cmd.Run()
+	output, err := dcm.dockerCompose(dir, "up", "-d")
 
 	if err != nil {
-		log.Printf("Failed to start: %v\n%v", err, output)
-		return nil, output.String(), err
+		log.Printf("Error: %v\noutput:\n%v\n", err.Error(), output)
+		return nil, output, err
 	}
 
 	log.Printf("Successfully started %s", key)
@@ -281,7 +290,7 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 		return nil, err.Error(), err
 	}
 
-	return &i, output.String(), nil
+	return &i, output, nil
 }
 
 // const imageCacheVolumeName = "image-cache-volume"
@@ -504,8 +513,42 @@ func getPort(port int, pm nat.PortMap) int {
 	return 0
 }
 
+func (dcm *dockerComposeManager) getInstanceDir(user, name string) string {
+	return path.Join(dcm.userRoot(), user, name)
+}
+
 func (dcm *dockerComposeManager) Stop(user string, name string) error {
 	panic("not implemented") // TODO: Implement
+}
+
+func (dcm *dockerComposeManager) Restart(user string, name string) error {
+
+	i, err := dcm.Get(user, name, false)
+
+	if err != nil {
+		return err
+	}
+
+	if i.Status != "running" {
+		return fmt.Errorf("instance %q is not running, so cannot restart", name)
+	}
+
+	dir := dcm.getInstanceDir(user, name)
+
+	output, err := dcm.dockerCompose(dir, "down")
+
+	if err != nil {
+		return fmt.Errorf("Failed to stop running instance: %v, output=\n%s\n", err, output)
+	}
+
+	output, err = dcm.dockerCompose(dir, "up", "-d")
+
+	if err != nil {
+		return fmt.Errorf("Failed to restart stopped instance: %v, output=\n%s\n", err, output)
+	}
+
+	return nil
+
 }
 
 func (dcm *dockerComposeManager) Kill(user string, name string) error {
