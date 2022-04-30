@@ -440,7 +440,13 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 	err = cmd.Run()
 
 	if err != nil {
-		return Instance{}, fmt.Errorf("Error running docker exec: %v", output.String())
+
+		if strings.Contains(output.String(), "executable file not found") {
+			log.Println("Error: can't get ports (open-ports not installed)")
+			return *i, nil
+		}
+
+		return Instance{}, fmt.Errorf("error running docker exec: %v", output.String())
 	}
 
 	i.Ports = dcm.getOpenPorts(output.String())

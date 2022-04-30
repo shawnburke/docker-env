@@ -172,12 +172,13 @@ class DockerEnvClient(object):
 
                 print(f'\t{p["label"]}: {port} {message}')
         print('')
-        stats = instance.get('container_stats', {})
-        mem = stats["memory_stats"]["usage"]
-        cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-        print(f'\tMemory: {mem / (1024*1024)}mb')
-        print(f'\tCPU: {cpu / 1000000000} cores (WIP! {cpu})')
-        print('')
+        stats = instance.get('container_stats', None)
+        if stats is not None:
+            mem = stats["memory_stats"]["usage"]
+            cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
+            print(f'\tMemory: {mem / (1024*1024)}mb')
+            print(f'\tCPU: {cpu / 1000000000} cores (WIP! {cpu})')
+            print('')
         if not c:
             print(f'Not connected, \'connect {name}\' to connect tunnels.')
 
