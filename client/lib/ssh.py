@@ -3,6 +3,8 @@ import subprocess
 import shlex
 import sys
 import re
+import threading
+from time import sleep
 
 MOCK = False
 
@@ -33,38 +35,30 @@ class SSH:
         """
         def __init__(self, proc: 'subprocess.Popen'):
             self.proc = proc
-            self.stderr = ""
-            self.stdout = ""
+            self.stderr_watcher = threading.Thread(target=self._watcher)
+            self.stderr = proc.stderr
+            self._done = False
+            self.stderr_watcher.start()
+            
 
         def is_alive(self):
             return self.proc is not None and self.proc.poll() is None
         
-        def output(self, streams='both') -> str:
-
-            if self.proc is None:
-                return ""
-
-            # stdout, stderr = self.proc.communicate(timeout=1)
-
-            # self.stdout += stdout
-            # self.stderr += stderr
-
-            # out = ""
-            # if streams in ['both', 'stdout']:
-            #     out = self.stdout
-            
-            # if streams in ['both', 'stderr']:
-            #     out += self.stderr
-
-            # return out
-            return ""
-        
         def kill(self):
+
+            self._done = True
             if self.is_alive():
                 self.proc.kill()
                 return True
 
             return False
+
+        def _watcher(self):
+            while not self._done:
+                stderr = self.stderr.readline().decode()
+                if len(stderr) > 0:
+                    sys.stderr.write("CAPTURED: " + stderr + "\n")
+
 
         def wait(self):
             if not self.is_alive():
@@ -105,20 +99,12 @@ class SSH:
 
 
         args = shlex.split(command)
-        proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
+        proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=subprocess.PIPE)
         proc.label = proc
         instance = SSH.SSHInstance(proc)
 
         if not instance.is_alive():
             print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
             return None
-
-        # output = instance.output()
-
-        # if output.contains("known_hosts") or output.contains("fingerprint"):
-        #     print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
-        #     print(f'\t{command}')
-        #     instance.kill()
-        #     return False
 
         return instance

@@ -6,6 +6,9 @@ import socket
 
 from lib.tunnel import Tunnel
 from lib.connection import Connection
+
+HTTP_CONNECTION_TIMEOUT=5
+
 class DockerEnvClient(object):
     """
     this allows access to the docker env backend
@@ -25,7 +28,7 @@ class DockerEnvClient(object):
         return f'/spaces/{self.user}{path}'
 
     def _request(self, path, method='GET', payload=None, fatal=True):
-        conn = http.client.HTTPConnection(self.host, self.port)
+        conn = http.client.HTTPConnection(self.host, self.port, HTTP_CONNECTION_TIMEOUT)
 
         try:
             url = self._url(path)
@@ -53,11 +56,13 @@ class DockerEnvClient(object):
                 "content": content,
                 "response": response
             }
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, socket.timeout):
             if fatal:
                 print(f'Cannot contact {self.host}:{self.port}, is it running?')
                 sys.exit(1)
             return False
+        except Exception as e:
+            print(f'Unable to connect to {method} {url}: {e} {type(e).__name__}')
         finally:
             conn.close()
 
@@ -184,7 +189,8 @@ class DockerEnvClient(object):
 
     def list(self):
         response = self._request("")
-        status_code =response["status"]
+
+        status_code = response["status"]
         if status_code == 200:
             instances = response["content"]
             if len(instances) == 0:

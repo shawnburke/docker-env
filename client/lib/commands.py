@@ -59,8 +59,8 @@ class Command:
         av = ""
 
         if len(a) > 0:
-            av = f', try: {",".join(a)}'
-        print(f'Unknown command {self.name}.{cmd} {av}')
+            av = f'try: {",".join(a)}'
+        print(f'Unknown command "{cmd}". {av}')
 
 
 

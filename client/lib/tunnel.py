@@ -114,12 +114,11 @@ class Tunnel:
         if self._check_port_open():
             return True
 
-        if self.connection is not None and self.connection.is_alive():
-            return True
-  
-        # if port is not open, try to start a tunnel
-        ssh = SSH(self.host, self.ssh_port, self.user)
-        self.connection = ssh.forward(self.remote_port, self.local_port)
-        return self.connection.is_alive()
+        if self.connection is None or not self.connection.is_alive():
+            # if port is not open, try to start a tunnel
+            ssh = SSH(self.host, self.ssh_port, self.user)
+            self.connection = ssh.forward(self.remote_port, self.local_port)
+        
+        return self.connection.is_alive() and self._check_port_open()
 
         
