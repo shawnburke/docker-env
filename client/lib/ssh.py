@@ -1,4 +1,5 @@
 
+from multiprocessing.sharedctypes import Value
 import subprocess
 import shlex
 import sys
@@ -33,13 +34,14 @@ class SSH:
         """
             Abstracts an open SSH connection
         """
-        def __init__(self, proc: 'subprocess.Popen'):
+        def __init__(self, proc: 'subprocess.Popen', host="localhost", ssh_port=22):
             self.proc = proc
+            self.host = host
+            self.ssh_port = ssh_port
             self.stderr_watcher = threading.Thread(target=self._watcher)
             self.stderr = proc.stderr
             self._done = False
             self.stderr_watcher.start()
-            
 
         def is_alive(self):
             return self.proc is not None and self.proc.poll() is None
@@ -47,17 +49,24 @@ class SSH:
         def kill(self):
 
             self._done = True
-            if self.is_alive():
-                self.proc.kill()
+            if self.proc:
+                self.proc.terminate()
+                self.proc = None
                 return True
 
             return False
 
+        def _on_err(self, err: str):
+            err = err.lower()
+            if err.find("connection refused"):
+                print(f'Can not connect via ssh to {self.host}:{self.ssh_port}')
+
+
         def _watcher(self):
-            while not self._done:
+            while not self._done and self.is_alive():
                 stderr = self.stderr.readline().decode()
                 if len(stderr) > 0:
-                    sys.stderr.write("CAPTURED: " + stderr + "\n")
+                    self._on_err(stderr)
 
 
         def wait(self):
@@ -99,9 +108,14 @@ class SSH:
 
 
         args = shlex.split(command)
-        proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=subprocess.PIPE)
-        proc.label = proc
-        instance = SSH.SSHInstance(proc)
+        proc = None
+        try:
+            proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=subprocess.PIPE)
+        except ValueError:
+            # we see this as a timing error when the tunnel fails and is shut down
+            return None
+        
+        instance = SSH.SSHInstance(proc, self.host, self.port or 22)
 
         if not instance.is_alive():
             print(f'Error: failed to tunnel exit code={instance.proc.returncode}')

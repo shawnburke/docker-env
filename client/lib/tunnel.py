@@ -13,14 +13,15 @@ class Tunnel:
 
         On disconnection it will attempt to reconnect
     """
-    def __init__(self, label, host, remote_port, local_port, message = None, ssh_port=None, user=None):
+    def __init__(self, label, host, remote_port, local_port, message = None, ssh_port=None, user=None, health=None):
         self.label = label
         self.host = host
         self.remote_port = remote_port
         if not remote_port:
-            raise ArgumentError("remote_port")
+            raise ArgumentError(argument="remote_port", message="Missing remote_port")
         self.local_port = local_port
         self.timer = None
+        self.health = health
         self.message = message
         self.connected = None
         self.connection = None
@@ -104,7 +105,7 @@ class Tunnel:
 
         return self.local_port
 
-    def _check_connection(self):
+    def _check_connection(self) -> bool:
 
         if not self._ensure_local_port():
             return False 
@@ -112,13 +113,21 @@ class Tunnel:
         
         # If port is open, do nothing
         if self._check_port_open():
+            if self.health:
+                return self.health()
             return True
 
         if self.connection is None or not self.connection.is_alive():
+
+            if self.connection:
+                self.connection.kill()
+                self.connection = None
+
             # if port is not open, try to start a tunnel
             ssh = SSH(self.host, self.ssh_port, self.user)
             self.connection = ssh.forward(self.remote_port, self.local_port)
+
         
-        return self.connection.is_alive() and self._check_port_open()
+        return self.connection is not None and self.connection.is_alive() and self._check_port_open()
 
         

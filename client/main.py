@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     if not cli.init():
         print(f'Unable to connect to API host {state.data["host"]} on port {state.data["port"]}')
+        cli.stop()
 
     # Ensure the host exists and/or SSH to the jumpbox to set it up
 
@@ -75,6 +76,7 @@ if __name__ == '__main__':
                 print(f' Unknown command: {command}')
                 continue
 
-            target(result)
+            cli.execute(target, result)
+  
     except KeyboardInterrupt:
         cli.stop()

@@ -9,6 +9,7 @@ from lib.connection import Connection
 
 HTTP_CONNECTION_TIMEOUT=5
 
+class APIException(BaseException): ...
 class DockerEnvClient(object):
     """
     this allows access to the docker env backend
@@ -18,11 +19,21 @@ class DockerEnvClient(object):
         self.port = port
         self.hostport = f'{host}:{port}'
         self.user = user
+        self.api_tunnel = None
         self.connections = {} # name => connection
         self.headers_list = {
             "Accept": "application/json",
             "Content-Type": "application/json"
         }
+
+    def execute(self, action, arg):
+        """
+        execute the action lambda with the given arg
+        """
+        try:
+            action(arg)
+        except APIException:
+            print(f'Unable to contact API at localhost:{self.port}, is it running on {self.host}?')
 
     def _url(self, path):
         return f'/spaces/{self.user}{path}'
@@ -57,25 +68,26 @@ class DockerEnvClient(object):
                 "response": response
             }
         except (ConnectionRefusedError, socket.timeout):
-            if fatal:
-                print(f'Cannot contact {self.host}:{self.port}, is it running?')
-                sys.exit(1)
-            return False
-        except Exception as e:
-            print(f'Unable to connect to {method} {url}: {e} {type(e).__name__}')
+            raise APIException()
+        except Exception as ex:
+            print(f'Unable to connect to {method} {url}: {ex} {type(ex).__name__}')
         finally:
             conn.close()
 
     def init(self):
-        self.api_tunnel = Tunnel("API", self.host, 3001, self.port)
+        self.api_tunnel = Tunnel("API", self.host, 3001, self.port, self.health)
         return self.api_tunnel.start()
+
+    def health(self) -> bool:
+        response = self._request('/health')
+        return response and response.get("status", 0) == 200
 
     def stop(self, code=0):
         for c in self.connections.values():
             c.stop()
         if self.api_tunnel:
             self.api_tunnel.stop()
-        sys.exit(code)
+        exit(code)
 
     def create(self, name, password=None, pubkey_path=None, image=None):
         """

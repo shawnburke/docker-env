@@ -1,4 +1,6 @@
 from threading import Thread, Event
+import traceback
+import sys
 
 counter = 0
 
@@ -17,10 +19,10 @@ class RepeatingTimer(Thread):
         try:
             self.running = True
             while self.running:
-                try: 
+                try:
                     self.function()
-                except Exception as e:
-                    print(f'Error running timer {self.name} function: {e}')
+                except:
+                    print(f'Error running timer {self.name} function: {traceback.print_exception(*sys.exc_info())}')
                 self.running = not self.event.wait(self.interval)
         finally:
             self.running = False
