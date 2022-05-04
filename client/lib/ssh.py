@@ -60,6 +60,9 @@ class SSH:
             err = err.lower()
             if err.find("connection refused"):
                 print(f'Can not connect via ssh to {self.host}:{self.ssh_port}')
+                return
+
+            print(f'SSH Error ({self.host}:{self.ssh_port}): {err}')
 
 
         def _watcher(self):

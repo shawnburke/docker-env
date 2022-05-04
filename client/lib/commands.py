@@ -26,7 +26,10 @@ class Command:
         parsed = {}
 
         if parser is not None:
-            parsed = parser.parse_args(args)
+            try:
+                parsed = parser.parse_args(args)
+            except SystemExit:
+                pass
         return self.command(self.name, parsed)
 
     @abstractmethod

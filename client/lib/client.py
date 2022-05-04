@@ -38,11 +38,13 @@ class DockerEnvClient(object):
     def _url(self, path):
         return f'/spaces/{self.user}{path}'
 
-    def _request(self, path, method='GET', payload=None, fatal=True):
+    def _request(self, path, method='GET', payload=None, fatal=True, raw_path=False):
         conn = http.client.HTTPConnection(self.host, self.port, HTTP_CONNECTION_TIMEOUT)
 
         try:
-            url = self._url(path)
+            url=path
+            if not raw_path:
+                url = self._url(path)
             body = None
 
             if payload:
@@ -75,11 +77,11 @@ class DockerEnvClient(object):
             conn.close()
 
     def init(self):
-        self.api_tunnel = Tunnel("API", self.host, 3001, self.port, self.health)
+        self.api_tunnel = Tunnel("API", self.host, 3001, self.port, health=self.health)
         return self.api_tunnel.start()
 
     def health(self) -> bool:
-        response = self._request('/health')
+        response = self._request('/health', raw_path=True)
         return response and response.get("status", 0) == 200
 
     def stop(self, code=0):
