@@ -10,7 +10,8 @@ class SSH:
     """
         Abstracts SSH comms
     """
-    def __init__(self, host, port=None, user=None):
+    def __init__(self, client, host, port=None, user=None):
+        self.client = client
         self.host = host
         self.port = port
         self.user = user
@@ -100,7 +101,7 @@ class SSH:
         command = self.command(self.host, remote_port, local_port)
 
         if MOCK:
-            print(f'\tCommand: {command}')
+            self.client.print(f'\tCommand: {command}')
             return SSH.SSHInstance(None)
 
 
@@ -110,14 +111,14 @@ class SSH:
         instance = SSH.SSHInstance(proc)
 
         if not instance.is_alive():
-            print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
+            self.client.print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
             return None
 
         # output = instance.output()
 
         # if output.contains("known_hosts") or output.contains("fingerprint"):
-        #     print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
-        #     print(f'\t{command}')
+        #     self.client.print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
+        #     self.client.print(f'\t{command}')
         #     instance.kill()
         #     return False
 
