@@ -22,11 +22,13 @@ func TestWriteFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	s := NewSpace{
-		User:        "the-user",
-		Password:    "the-password",
-		Name:        "the-space",
-		DnsSearch:   "search.com",
-		Nameservers: []string{"1.2.3.4", "8.8.8.8"},
+		User:     "the-user",
+		Password: "the-password",
+		Name:     "the-space",
+		params: Params{
+			DnsSearch:      "search.com",
+			DnsNameservers: []string{"1.2.3.4", "8.8.8.8"},
+		},
 	}
 
 	err = createSpaceFiles(dir, s)
@@ -38,14 +40,7 @@ func TestWriteFiles(t *testing.T) {
 
 }
 
-func TestCreateYaml(t *testing.T) {
-	s := NewSpace{
-		User:        "the-user",
-		Password:    "the-password",
-		Name:        "the-space",
-		DnsSearch:   "search.com",
-		Nameservers: []string{"1.2.3.4", "8.8.8.8"},
-	}
+func generateAndParseYml(t *testing.T, s NewSpace) (map[string]interface{}, string) {
 
 	dc, err := createDockerCompose(s)
 	require.NoError(t, err)
@@ -57,12 +52,29 @@ func TestCreateYaml(t *testing.T) {
 	raw, err := yaml.Marshal(parsed)
 	require.NoError(t, err)
 
-	y := strings.Trim(string(raw), " \n")
-	fmt.Println(y)
+	trimmed := strings.Trim(string(raw), " \n")
+
+	return parsed, trimmed
+}
+
+func TestCreateYaml(t *testing.T) {
+	s := NewSpace{
+		User:     "the-user",
+		Password: "the-password",
+		Name:     "the-space",
+		params: Params{
+			DnsSearch:      "search.com",
+			DnsNameservers: []string{"1.2.3.4", "8.8.8.8"},
+		},
+	}
+
+	_, trimmed := generateAndParseYml(t, s)
+
+	fmt.Println(trimmed)
 
 	expected := `services:
     docker:
-        command: --dns 1.2.3.4 --dns 8.8.8.8 --dns-search search.com
+        command: --tls=false --dns 1.2.3.4 --dns 8.8.8.8 --dns-search search.com
         container_name: dind-the-user-the-space
         environment:
             - DOCKER_TLS_CERTDIR=
@@ -72,6 +84,8 @@ func TestCreateYaml(t *testing.T) {
         image: docker:dind
         privileged: true
         restart: unless-stopped
+        volumes:
+            - the-user-the-space-volume:/home/the-user
     workspace:
         container_name: space-the-user-the-space
         environment:
@@ -90,31 +104,79 @@ func TestCreateYaml(t *testing.T) {
 version: "3"
 volumes:
     the-user-the-space-volume: null`
-	require.Equal(t, expected, y)
+	require.Equal(t, expected, trimmed)
 
 }
 
 func TestNameserverArgs(t *testing.T) {
 	s := NewSpace{
-		User:        "the-user",
-		Password:    "the-password",
-		Name:        "the-space",
-		Nameservers: strings.Split("", ","),
+		User:     "the-user",
+		Password: "the-password",
+		Name:     "the-space",
+		params: Params{
+
+			DnsNameservers: strings.Split("", ","),
+		},
 	}
 
-	require.Equal(t, "", s.DockerArgs())
+	require.Equal(t, "--tls=false", s.DockerArgs())
+
+}
+
+func walk(d map[string]interface{}, keys ...string) interface{} {
+
+	var v interface{} = nil
+
+	for len(keys) > 0 {
+		k := keys[0]
+		keys = keys[1:]
+		val, ok := d[k]
+		if !ok {
+			panic("not present: " + k)
+		}
+		v = val
+		child, next := val.(map[string]interface{})
+		if !next {
+			break
+		}
+		d = child
+	}
+	if len(keys) > 0 {
+		panic("didn't find last key" + keys[0])
+	}
+	return v
+}
+
+func TestCopyResolvArgs(t *testing.T) {
+	s := NewSpace{
+		User:     "the-user",
+		Password: "the-password",
+		Name:     "the-space",
+		params: Params{
+			CopyHostDns: true,
+		},
+	}
+
+	parsed, _ := generateAndParseYml(t, s)
+
+	vols := walk(parsed, "services", "docker", "volumes")
+
+	require.Len(t, vols, 2)
+	require.Contains(t, vols, "/etc/resolv.conf:/etc/resolv.conf")
 
 }
 
 func TestNameserverArgsStripQuotes(t *testing.T) {
 	s := NewSpace{
-		User:        "the-user",
-		Password:    "the-password",
-		Name:        "the-space",
-		Nameservers: strings.Split(`"1.2.3.4,8.8.4.1"`, ","),
+		User:     "the-user",
+		Password: "the-password",
+		Name:     "the-space",
+		params: Params{
+			DnsNameservers: strings.Split(`"1.2.3.4,8.8.4.1"`, ","),
+		},
 	}
 
-	require.Equal(t, "--dns 1.2.3.4 --dns 8.8.4.1", s.DockerArgs())
+	require.Equal(t, "--tls=false --dns 1.2.3.4 --dns 8.8.4.1", s.DockerArgs())
 
 }
 
@@ -157,8 +219,8 @@ func TestCheckOpenPort(t *testing.T) {
 
 func TestParseOpenPorts(t *testing.T) {
 	payload := `8080=label|msg
-	3000=My webserver
-	`
+    3000=My webserver
+    `
 
 	dcm := &dockerComposeManager{}
 	ports := dcm.getOpenPorts(payload)

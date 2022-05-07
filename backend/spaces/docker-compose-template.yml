@@ -6,16 +6,16 @@ services:
         image: docker:dind
         restart: unless-stopped
         container_name: "dind-{{.User}}-{{.Name}}"
+        # TODO: investigate sysbox to avoid this
         privileged: true
         expose:
             - 2375
             - 2376
         environment:
             - DOCKER_TLS_CERTDIR=
-        {{if .ImageCacheVolume}}volumes:
-            - "image-cache-volume:/var/lib/docker/overlay2"
-            - "image-cache-volume-images:/var/lib/docker/image"
-        {{end}}
+        volumes:
+            - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
+            {{if .Params.CopyHostDns}}- "/etc/resolv.conf:/etc/resolv.conf"{{end}}
         {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
 
     workspace:
@@ -36,9 +36,3 @@ services:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
 volumes:
   {{.User}}-{{.Name}}-volume:
-  {{if .ImageCacheVolume}}
-  {{.ImageCacheVolume}}:
-    external: true
-  {{.ImageCacheVolume}}-images:
-    external: true
-  {{end}}

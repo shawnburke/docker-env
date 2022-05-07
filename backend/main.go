@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	port := 3000
+	port := 3001
 
 	if env := os.Getenv("PORT"); env != "" {
 		p, err := strconv.ParseInt(env, 10, 32)
@@ -39,6 +39,7 @@ func main() {
 		Dir:            os.Getenv("DIR"),
 		DefaultImage:   os.Getenv("DEFAULT_IMAGE"),
 		DnsSearch:      os.Getenv("DNS_SEARCH"),
+		CopyHostDns:    os.Getenv("COPY_HOST_DNS") == "true" || os.GetEnv("COPY_HOST_DNS") == "1",
 		DnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
 	}
 

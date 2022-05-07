@@ -37,37 +37,38 @@ type NewSpace struct {
 	Root          string
 	UserRoot      string
 
-	Nameservers      []string
-	DnsSearch        string
-	ImageCacheVolume string
+	params Params
 }
 
 func (ns NewSpace) DockerArgs() string {
 
-	args := []string{}
-	if len(ns.Nameservers) > 0 {
-		for _, ns := range ns.Nameservers {
-			ns := strings.Trim(ns, " \t'\"")
-			if ns != "" {
-				args = append(args, "--dns "+ns)
-			}
+	args := []string{
+		"--tls=false",
+	}
+
+	for _, ns := range ns.params.DnsNameservers {
+		ns := strings.Trim(ns, " \t'\"")
+		if ns != "" {
+			args = append(args, "--dns "+ns)
 		}
 	}
 
-	if len(ns.DnsSearch) > 0 {
-		args = append(args, "--dns-search "+strings.Trim(ns.DnsSearch, "\t '\""))
+	if len(ns.params.DnsSearch) > 0 {
+		args = append(args, "--dns-search "+strings.Trim(ns.params.DnsSearch, "\t '\""))
 	}
 
 	return strings.Join(args, " ")
+}
+
+func (ns NewSpace) Params() Params {
+	return ns.params
 }
 
 func (ns NewSpace) PubKeyEncoded() string {
 	if ns.PubKey == "" {
 		return ""
 	}
-
 	return base64.URLEncoding.EncodeToString([]byte(ns.PubKey))
-
 }
 
 type Instance struct {
@@ -112,6 +113,7 @@ type Params struct {
 	DefaultImage   string
 	DnsNameservers []string
 	DnsSearch      string
+	CopyHostDns    bool
 	Dir            string
 }
 
@@ -141,18 +143,17 @@ func New(p Params) Manager {
 	}
 
 	dcm := &dockerComposeManager{
-		root:           p.Dir,
-		uroot:          path.Join(p.Dir, "spaces"),
-		defaultImage:   defaultImage,
-		dnsNameservers: p.DnsNameservers,
-		dnsSearch:      p.DnsSearch,
+		root:         p.Dir,
+		uroot:        path.Join(p.Dir, "spaces"),
+		defaultImage: defaultImage,
+		params:       p,
 	}
 
-	if len(dcm.dnsNameservers) > 0 {
+	if len(p.DnsNameservers) > 0 {
 		log.Printf("Using custom nameservers: %s", strings.Join(p.DnsNameservers, ","))
 	}
 
-	if dcm.dnsSearch != "" {
+	if p.DnsSearch != "" {
 		log.Printf("Using custom DNS search domain: %s", p.DnsSearch)
 	}
 
@@ -160,12 +161,11 @@ func New(p Params) Manager {
 }
 
 type dockerComposeManager struct {
-	root           string
-	uroot          string
-	cli            *client.Client
-	defaultImage   string
-	dnsNameservers []string
-	dnsSearch      string
+	root         string
+	uroot        string
+	cli          *client.Client
+	defaultImage string
+	params       Params
 }
 
 func (dcm *dockerComposeManager) client() (*client.Client, error) {
@@ -259,14 +259,7 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 		return nil, "Can not find image " + space.Image, err
 	}
 
-	// space.ImageCacheVolume = imageCacheVolumeName
-	// err = dcm.ensureImageCache(imageCacheVolumeName)
-	// if err != nil {
-	// 	return nil, err.Error(), err
-	// }
-
-	space.Nameservers = dcm.dnsNameservers
-	space.DnsSearch = dcm.dnsSearch
+	space.params = dcm.params
 
 	err = createSpaceFiles(dir, space)
 	if err != nil {
@@ -292,44 +285,6 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 
 	return &i, output, nil
 }
-
-// const imageCacheVolumeName = "image-cache-volume"
-
-// func (dcm *dockerComposeManager) ensureImageCache(name string) error {
-
-// 	cli, err := dcm.client()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	tryCreate := func(name string) error {
-// 		_, err = cli.VolumeInspect(context.Background(), name)
-
-// 		if err != nil {
-
-// 			log.Printf("Creating shared image cache: %s`", name)
-// 			_, err = cli.VolumeCreate(context.Background(), volume.VolumeCreateBody{
-// 				Name:   name,
-// 				Driver: "local",
-// 			})
-
-// 			if err != nil {
-// 				return fmt.Errorf("Failed to create  cache volume %q: %v", name, err)
-// 			}
-// 		}
-// 		return err
-// 	}
-
-// 	for _, n := range []string{name} {
-// 		err = tryCreate(n)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-
-// }
 
 type ContainerStats struct {
 	MemoryStats types.MemoryStats `json:"memory_stats"`
