@@ -3,6 +3,7 @@ import subprocess
 import shlex
 import sys
 import re
+import time
 
 MOCK = False
 
@@ -18,16 +19,19 @@ class SSH:
 
     @staticmethod
     def find_existing(ssh_port, remote_port):
+        """
+        find_existing looks for an existing ssh process that tunnels from local machine to the remote port.  
+        this exists for clients that are started when tunnel is already running from another client instance.
+        """
         proc = subprocess.run(["sh", "-c", f'pgrep -f -l ssh | grep {ssh_port} | grep ":{remote_port}"'],stdout=subprocess.PIPE)
         if proc.returncode != 0:
             return None
         
-        m = re.search(f'(\d+):localhost:{remote_port}', str(proc.stdout))
+        m = re.search(r'(\d+):localhost:'+ str(remote_port), str(proc.stdout))
         if not m:
             return None
 
         return int(m.group(1))        
-        
     class SSHInstance:
         """
             Abstracts an open SSH connection
@@ -39,27 +43,7 @@ class SSH:
 
         def is_alive(self):
             return self.proc is not None and self.proc.poll() is None
-        
-        def output(self, streams='both') -> str:
 
-            if self.proc is None:
-                return ""
-
-            # stdout, stderr = self.proc.communicate(timeout=1)
-
-            # self.stdout += stdout
-            # self.stderr += stderr
-
-            # out = ""
-            # if streams in ['both', 'stdout']:
-            #     out = self.stdout
-            
-            # if streams in ['both', 'stderr']:
-            #     out += self.stderr
-
-            # return out
-            return ""
-        
         def kill(self):
             if self.is_alive():
                 self.proc.kill()
@@ -110,16 +94,11 @@ class SSH:
         proc.label = proc
         instance = SSH.SSHInstance(proc)
 
+        # Give it a second to set up
+        time.sleep(1)
+
         if not instance.is_alive():
             self.client.print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
             return None
-
-        # output = instance.output()
-
-        # if output.contains("known_hosts") or output.contains("fingerprint"):
-        #     self.client.print(f'SSH needs fingerprint or known_hosts updates, please run this command, accept the prompts, then try again')
-        #     self.client.print(f'\t{command}')
-        #     instance.kill()
-        #     return False
 
         return instance

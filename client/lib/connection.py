@@ -17,11 +17,16 @@ class Connection:
         self.tunnel = None
         self.tunnels = {}
         self.portmap = {}
-        self.timer = RepeatingTimer(5, self._poll, f'Connection {name}')
+        self.timer = None
 
     def start(self):
+
         if self.is_alive():
             return True
+
+        if self.timer is None:
+            self.timer = RepeatingTimer(5, self._poll, f'Connection {self.name}')
+
         result = self._poll()
         if result:
             self.timer.start()
