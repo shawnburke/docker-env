@@ -6,8 +6,9 @@ import socket
 
 from lib.tunnel import Tunnel
 from lib.connection import Connection
+from lib.printer import Printer
 
-class DockerEnvClient(object):
+class DockerEnvClient(Printer):
     """
     this allows access to the docker env backend
     """
@@ -23,14 +24,14 @@ class DockerEnvClient(object):
         }
         self._in_ssh = False
 
-    def print(self, msg):
+    def print(self, msg: str, end='\n'):
         if self._in_ssh:
             print("\n\r[ --- docker-env client --- ]")
             for line in msg.split('\n'):
-                print(f'\r| {line}')
+                print(f'\r| {line}', end=end)
             print("\r[ --- ]\r\n")
         else:
-            print("| " + msg)
+            print("| " + msg, end=end)
         
 
     def _url(self, path):

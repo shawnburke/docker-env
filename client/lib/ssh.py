@@ -1,9 +1,11 @@
 
+from asyncio import InvalidStateError
 import subprocess
 import shlex
 import sys
 import re
 import time
+from lib.printer import Printer
 
 MOCK = False
 
@@ -11,8 +13,8 @@ class SSH:
     """
         Abstracts SSH comms
     """
-    def __init__(self, client, host, port=None, user=None):
-        self.client = client
+    def __init__(self, printer: 'Printer', host, port=None, user=None):
+        self.printer = printer
         self.host = host
         self.port = port
         self.user = user
@@ -36,13 +38,28 @@ class SSH:
         """
             Abstracts an open SSH connection
         """
-        def __init__(self, proc: 'subprocess.Popen'):
-            self.proc = proc
+        def __init__(self, command: str):
+            self.command = command
+            self.proc = None
             self.stderr = ""
             self.stdout = ""
 
         def is_alive(self):
             return self.proc is not None and self.proc.poll() is None
+
+        def run(self, wait:float = .5):
+            if self.proc is not None:
+                raise InvalidStateError()
+
+            args = shlex.split(self.command)
+            self.proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
+            time.sleep(wait)
+
+        def ensure(self):
+            if self.proc is None:
+                self.run()
+   
+            return self.is_alive
 
         def kill(self):
             if self.is_alive():
@@ -58,7 +75,9 @@ class SSH:
             self.proc.wait()
 
     def command(self, host, remote_port, local_port=None, forward_agent=False):
-        args="-NL"
+        args = ""
+        if forward_agent:
+            args = '-A'
 
         host = host or self.host or "localhost"
 
@@ -68,13 +87,14 @@ class SSH:
         if self.port is not None:
             args = f'-p {self.port} {args}'
         
-        if forward_agent:
-            args = f'-A {args}'
-
         if local_port is None:
+
+            if remote_port is None:
+                return f'ssh {args} {host}'
+            
             local_port = remote_port
 
-        return  f'ssh {args} {local_port}:localhost:{remote_port} {host}'
+        return  f'ssh {args} -NL {local_port}:localhost:{remote_port} {host}'
 
 
     def forward(self, remote_port, local_port=None):
@@ -83,22 +103,5 @@ class SSH:
         """
        
         command = self.command(self.host, remote_port, local_port)
-
-        if MOCK:
-            self.client.print(f'\tCommand: {command}')
-            return SSH.SSHInstance(None)
-
-
-        args = shlex.split(command)
-        proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
-        proc.label = proc
-        instance = SSH.SSHInstance(proc)
-
-        # Give it a second to set up
-        time.sleep(1)
-
-        if not instance.is_alive():
-            self.client.print(f'Error: failed to tunnel exit code={instance.proc.returncode}')
-            return None
-
+        instance = SSH.SSHInstance(command)
         return instance

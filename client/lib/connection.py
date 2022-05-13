@@ -2,14 +2,15 @@
 from multiprocessing.sharedctypes import Value
 from lib.repeating_timer import RepeatingTimer
 from lib.tunnel import Tunnel
+from lib.printer import Printer
 from os import path
 import os
 import tempfile
 
    
 class Connection:
-    def __init__(self, client, host, user, name, get_instance):
-        self.client = client
+    def __init__(self, printer: 'Printer', host, user, name, get_instance):
+        self.printer = printer
         self.user = user
         self.host = host
         self.name = name
@@ -75,7 +76,7 @@ class Connection:
                 self.portmap[remote_port] = port
                 return port
             except ValueError as e:
-                self.client.print(f'Error reading portfile {portfile_path}: {e}')
+                self.printer.print(f'Error reading portfile {portfile_path}: {e}')
                 pass
 
         return 0
@@ -94,7 +95,7 @@ class Connection:
         response = self.get_instance(self.name)
         status_code = response["status"]
         if status_code != 200:
-            self.client.print("Invalid instance name")
+            self.printer.print("Invalid instance name")
             return False
 
         instance = response["content"]
@@ -104,7 +105,7 @@ class Connection:
             if self.tunnel:
                 self.tunnel.stop()
 
-            self.tunnel = Tunnel(self.client, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
+            self.tunnel = Tunnel(self.printer, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
             if not self.tunnel.start():
                 return False
 
@@ -125,7 +126,7 @@ class Connection:
                 check_ssh=False)
             
             if 0 == local_port:
-                self.client.print(f'Failed to start connection to {self.name} port {self.host}:{remote_port}')
+                self.printer.print(f'Failed to start connection to {self.name} port {self.host}:{remote_port}')
                 continue
 
             self._save_local_port(remote_port, local_port)
@@ -137,7 +138,7 @@ class Connection:
                 continue
             tunnel = self.tunnels[remote_port]
 
-            self.client.print(f'Closing tunnel to port {tunnel.local_port} (Remote port {remote_port}) as it seems to be no longer open.')
+            self.printer.print(f'Closing tunnel to port {tunnel.local_port} (Remote port {remote_port}) as it seems to be no longer open.')
             tunnel.stop()
             del self.tunnels[remote_port]
 
@@ -155,16 +156,16 @@ class Connection:
             return self.tunnels[remote_port].local_port
 
         if check_ssh and not self._poll():
-            self.client.print(f'Unable to connect to {self.name} SSH port')
+            self.printer.print(f'Unable to connect to {self.name} SSH port')
             return 0
 
     
         
-        tunnel = Tunnel(self.client, label, "localhost", remote_port=remote_port, local_port=local_port, message=message, ssh_port=self.tunnel.local_port, user=self.user)
+        tunnel = Tunnel(self.printer, label, "localhost", remote_port=remote_port, local_port=local_port, message=message, ssh_port=self.tunnel.local_port, user=self.user)
         self.tunnels[remote_port] = tunnel
         
         if tunnel.start():
             return tunnel.local_port
 
-        self.client.print(f'Unable to start tunnel to {self.name} {label} port={local_port}')
+        self.printer.print(f'Unable to start tunnel to {self.name} {label} port={local_port}')
         return 0

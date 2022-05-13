@@ -8,7 +8,7 @@ class TestTunnel(unittest.TestCase):
 
     def test_events(self):
 
-        server = HTTPServer(("localhost", 55999), lambda req, addr, server: print("req"))
+        server = HTTPServer(("localhost", 55999), lambda req, addr, server: 1)
         tunnel = lib.Tunnel(None,"Test", "localhost", 54321, 55999, expect_open=True)
 
         try:
@@ -20,7 +20,8 @@ class TestTunnel(unittest.TestCase):
             self.assertTrue(result)
 
         finally:
-            server.shutdown()
+            server.server_close()
+            server.shutdown()            
             tunnel.stop()
 
 
