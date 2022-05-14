@@ -25,7 +25,7 @@ class Tunnel:
         3. If the tunnel fails, it will retry.
     """
 
-    def __init__(self, container: 'Container', label, host, remote_port, local_port, message=None, ssh_port=None, user=None, expect_open=False):
+    def __init__(self, container: 'Container', label, host, remote_port, local_port=None, message=None, ssh_port=None, user=None, expect_open=False):
         self.printer = container.get(Printer)
         self.container = container
 

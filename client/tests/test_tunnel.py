@@ -30,6 +30,16 @@ class TestTunnel(unittest.TestCase):
             server.shutdown()            
             tunnel.stop()
 
+    def test_allocate_port(self):
+        tunnel = lib.Tunnel(self.container,"Test", "localhost", 54321, None, expect_open=True)
+
+        self.assertIsNone(tunnel.local_port)
+        port = tunnel._ensure_local_port()
+        self.assertNotEqual(port, 0)
+        self.assertEqual(port, tunnel.local_port)
+        self.assertFalse(lib.Tunnel.is_port_open(port))
+
+
 
 if __name__ == '__main__':
     unittest.main()
