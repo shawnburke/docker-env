@@ -3,8 +3,15 @@ import unittest
 
 class TestUser(unittest.TestCase):
 
-    def test_user_activation(self):
-        conn = lib.Connection(None, "the-host", "the-user", "the-name", None)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.container = lib.Container({
+          lib.Printer: lib.NullPrinter(),
+        })
+
+    def test_portfile_path(self):
+        conn = lib.Connection(self.container, "the-host", "the-user", "the-name", None)
         val = conn._get_portfile_path(1234)
         self.assertEqual("/tmp/docker-env/the-user-the-name-1234.port", val)
 

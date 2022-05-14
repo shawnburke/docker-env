@@ -1,16 +1,16 @@
+import os
+import tempfile
+from os import path
 
-from multiprocessing.sharedctypes import Value
 from lib.repeating_timer import RepeatingTimer
 from lib.tunnel import Tunnel
 from lib.printer import Printer
-from os import path
-import os
-import tempfile
+from lib.container import Container
 
-   
 class Connection:
-    def __init__(self, printer: 'Printer', host, user, name, get_instance):
-        self.printer = printer
+    def __init__(self, container: 'Container', host, user, name, get_instance):
+        self.container = container
+        self.printer = container.get(Printer)
         self.user = user
         self.host = host
         self.name = name
@@ -56,15 +56,12 @@ class Connection:
 
         return path.join(tmpdir, f'{self.user}-{self.name}-{remote_port}.port')
 
-
-
     def _get_local_port(self, remote_port):
         # portmap is a file like [instance].[user].remote_port_.port, with contents being the local port
         local_port = self.portmap.get(remote_port, 0)
 
         if local_port != 0:
             return local_port
-
 
         portfile_path = self._get_portfile_path(remote_port)
         if not path.exists(portfile_path):
@@ -75,19 +72,19 @@ class Connection:
                 port = int(portfile.read())
                 self.portmap[remote_port] = port
                 return port
-            except ValueError as e:
-                self.printer.print(f'Error reading portfile {portfile_path}: {e}')
+            except ValueError as ex:
+                self.printer.print(f'Error reading portfile {portfile_path}: {ex}')
                 pass
 
         return 0
-    
+
     def _save_local_port(self, remote_port, local_port):
-        
+
         self.portmap[remote_port] = local_port
         portfile_path = self._get_portfile_path(remote_port)
         with open(portfile_path, "w") as portfile:
             portfile.write(str(local_port))
-        
+
 
 
     def _poll(self) -> bool:
@@ -124,7 +121,7 @@ class Connection:
                 local_port= self._get_local_port(remote_port),
                 message=port_info.get("message"), 
                 check_ssh=False)
-            
+
             if 0 == local_port:
                 self.printer.print(f'Failed to start connection to {self.name} port {self.host}:{remote_port}')
                 continue
@@ -149,7 +146,7 @@ class Connection:
             return self.tunnels[port]
 
         return None
-    
+
     def forward_port(self, label, remote_port, local_port = 0, message=None, check_ssh=True) -> int:
         tunnel = self.tunnels.get(remote_port, None)
         if tunnel is not None:
@@ -159,11 +156,9 @@ class Connection:
             self.printer.print(f'Unable to connect to {self.name} SSH port')
             return 0
 
-    
-        
-        tunnel = Tunnel(self.printer, label, "localhost", remote_port=remote_port, local_port=local_port, message=message, ssh_port=self.tunnel.local_port, user=self.user)
+        tunnel = self.container.create(Tunnel, self.container, label, "localhost", remote_port=remote_port, local_port=local_port, message=message, ssh_port=self.tunnel.local_port, user=self.user)
         self.tunnels[remote_port] = tunnel
-        
+
         if tunnel.start():
             return tunnel.local_port
 

@@ -6,6 +6,7 @@ from enum import Enum
 from lib.repeating_timer import RepeatingTimer
 from lib.ssh import SSH
 from lib.printer import Printer
+from lib.container import Container
 
 
 class TunnelEvents(Enum):
@@ -24,21 +25,24 @@ class Tunnel:
         3. If the tunnel fails, it will retry.
     """
 
-    def __init__(self, printer: 'Printer', label, host, remote_port, local_port, message=None, ssh_port=None, user=None, expect_open=False):
-        self.printer = printer
+    def __init__(self, container: 'Container', label, host, remote_port, local_port, message=None, ssh_port=None, user=None, expect_open=False):
+        self.printer = container.get(Printer)
+        self.container = container
+
         self.label = label
         self.host = host
         self.remote_port = remote_port
         if not remote_port:
             raise ArgumentError("remote_port", "remote port is required")
         self.local_port = local_port
-        self.timer = None
+        self.ssh_port = ssh_port
         self.message = message
+        self.user = user
+
+        self.timer = None
         self.connection = None
         self.port_status = None
 
-        self.ssh_port = ssh_port
-        self.user = user
         self.handlers = []
         self.add_handler(self._report_status)
         self.done = False
@@ -147,7 +151,7 @@ class Tunnel:
     def _create_connection(self):
         if not self.connection or not self.connection.is_alive():
             # if port is not open, try to start a tunnel
-            ssh = SSH(self.printer, self.host, self.ssh_port, self.user)
+            ssh = self.container.create(SSH, self.container, self.host, self.ssh_port, self.user)
             self.connection = ssh.forward(self.remote_port, self.local_port)
             if not self.connection.ensure():
                 self.printer.print(

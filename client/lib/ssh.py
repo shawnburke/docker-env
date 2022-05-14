@@ -6,8 +6,8 @@ import sys
 import re
 import time
 from lib.printer import Printer
+from lib.container import Container
 
-MOCK = False
 
 class SSH:
     """
@@ -17,8 +17,8 @@ class SSH:
         then returns an SSHInstance which actually invokes the 
         command, etc.
     """
-    def __init__(self, printer: 'Printer', host, port=None, user=None):
-        self.printer = printer
+    def __init__(self, container: 'Container', host, port=None, user=None):
+        self.printer = container.get(Printer)
         self.host = host
         self.port = port
         self.user = user

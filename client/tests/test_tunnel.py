@@ -6,10 +6,16 @@ from threading import Thread
 
 class TestTunnel(unittest.TestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.container = lib.Container({
+          lib.Printer: lib.NullPrinter(),
+        })
+
     def test_events(self):
 
         server = HTTPServer(("localhost", 55999), lambda req, addr, server: 1)
-        tunnel = lib.Tunnel(None,"Test", "localhost", 54321, 55999, expect_open=True)
+        tunnel = lib.Tunnel(self.container,"Test", "localhost", 54321, 55999, expect_open=True)
 
         try:
 

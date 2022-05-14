@@ -7,15 +7,18 @@ import socket
 from lib.tunnel import Tunnel
 from lib.connection import Connection
 from lib.printer import Printer
+from lib.container import Container
 from lib.ssh import SSH
 
 class DockerEnvClient(Printer):
     """
     this allows access to the docker env backend
     """
-    def __init__(self, user, host, port=3000):
+    def __init__(self, container: 'Container', user, host, port=3000):
         self.host = host
         self.port = port
+        self.container = container
+        self.container.register(Printer, self)
         self.hostport = f'{host}:{port}'
         self.user = user
         self.connections = {} # name => connection
@@ -76,7 +79,7 @@ class DockerEnvClient(Printer):
             conn.close()
 
     def init(self):
-        self.api_tunnel = Tunnel(self, "API", self.host, 3001, self.port)
+        self.api_tunnel = self.container.create(Tunnel, self.container, "API", self.host, 3001, self.port)
         return self.api_tunnel.start()
 
     def stop(self, code=0):
@@ -253,7 +256,7 @@ class DockerEnvClient(Printer):
         connection = self.connections.get(name)
         
         if connection is None:
-            connection = Connection(self, host, self.user, name, lambda name: self._request(f'/{name}'))
+            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self._request(f'/{name}'))
             self.connections[name] = connection
 
         if not connection.start():
@@ -302,7 +305,7 @@ class DockerEnvClient(Printer):
             self.print(f'SSH port is not open, run `docker-env connect {name}` first')
             return
 
-        ssh = SSH(self, "localhost", ssh_port, self.user).session()
+        ssh = self.container.create(SSH, self, "localhost", ssh_port, self.user).session()
         self.print(ssh.command)
         try:
             self._in_ssh = True
