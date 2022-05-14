@@ -305,7 +305,7 @@ class DockerEnvClient(Printer):
             self.print(f'SSH port is not open, run `docker-env connect {name}` first')
             return
 
-        ssh = self.container.create(SSH, self, "localhost", ssh_port, self.user).session()
+        ssh = self.container.create(SSH, self.container, "localhost", ssh_port, self.user).session()
         self.print(ssh.command)
         try:
             self._in_ssh = True

@@ -102,7 +102,7 @@ class Connection:
             if self.tunnel:
                 self.tunnel.stop()
 
-            self.tunnel = Tunnel(self.printer, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
+            self.tunnel = Tunnel(self.container, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
             if not self.tunnel.start():
                 return False
 

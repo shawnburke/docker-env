@@ -2,10 +2,20 @@
 import sys
 import shlex
 
-
+import lib
 from lib.client import DockerEnvClient
 from lib.commands import RootCommand
+from lib.container import Container
+from lib.ssh import SSH
+from lib.tunnel import Tunnel
 
+
+container = Container({
+    lib.Printer: lib.Printer(),
+    lib.SSH: lib.SSH,
+    lib.Tunnel: lib.Tunnel,
+    lib.Connection: lib.Connection,
+})
 
 if __name__ == '__main__':
 
@@ -30,7 +40,7 @@ if __name__ == '__main__':
 
     state = root.exec(None)
 
-    cli = DockerEnvClient(state.data["user"], state.data.get("jumpbox", "localhost"), state.data["port"])
+    cli = DockerEnvClient(container, state.data["user"], state.data.get("jumpbox", "localhost"), state.data["port"])
 
     if not cli.init():
         print(f'Unable to connect to API host {state.data["host"]} on port {state.data["port"]}')
