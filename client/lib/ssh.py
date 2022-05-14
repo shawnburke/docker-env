@@ -11,7 +11,7 @@ MOCK = False
 
 class SSH:
     """
-        Abstracts SSH comms
+        Abstracts SSH comms.
     """
     def __init__(self, printer: 'Printer', host, port=None, user=None):
         self.printer = printer
@@ -59,7 +59,7 @@ class SSH:
             if self.proc is None:
                 self.run()
    
-            return self.is_alive
+            return self.is_alive()
 
         def kill(self):
             if self.is_alive():
@@ -69,12 +69,12 @@ class SSH:
             return False
 
         def wait(self):
-            if not self.is_alive():
+            if not self.ensure():
                 return
 
             self.proc.wait()
 
-    def command(self, host, remote_port, local_port=None, forward_agent=False):
+    def command(self, host=None, remote_port=None, local_port=None, forward_agent=False):
         args = ""
         if forward_agent:
             args = '-A'
@@ -97,11 +97,15 @@ class SSH:
         return  f'ssh {args} -NL {local_port}:localhost:{remote_port} {host}'
 
 
+    def session(self):
+        cmd = self.command(forward_agent=True)
+        return SSH.SSHInstance(cmd)
+
     def forward(self, remote_port, local_port=None):
         """
             creates a port forward via SSH
         """
        
-        command = self.command(self.host, remote_port, local_port)
-        instance = SSH.SSHInstance(command)
+        cmd = self.command(self.host, remote_port, local_port)
+        instance = SSH.SSHInstance(cmd)
         return instance

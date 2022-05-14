@@ -7,6 +7,7 @@ import socket
 from lib.tunnel import Tunnel
 from lib.connection import Connection
 from lib.printer import Printer
+from lib.ssh import SSH
 
 class DockerEnvClient(Printer):
     """
@@ -31,7 +32,7 @@ class DockerEnvClient(Printer):
                 print(f'\r| {line}', end=end)
             print("\r[ --- ]\r\n")
         else:
-            print("| " + msg, end=end)
+            print("| " + msg)
         
 
     def _url(self, path):
@@ -301,11 +302,11 @@ class DockerEnvClient(Printer):
             self.print(f'SSH port is not open, run `docker-env connect {name}` first')
             return
 
-        command = f'ssh -A -p {ssh_port} {self.user}@localhost'
-        self.print(command)
+        ssh = SSH(self, "localhost", ssh_port, self.user).session()
+        self.print(ssh.command)
         try:
-            self._in_ssh = True  
-            os.system(command)
+            self._in_ssh = True
+            ssh.wait()
         finally:
             self._in_ssh = False
         
