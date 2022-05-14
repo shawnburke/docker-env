@@ -12,6 +12,10 @@ MOCK = False
 class SSH:
     """
         Abstracts SSH comms.
+
+        Takes in parameters and formats an SSH command,
+        then returns an SSHInstance which actually invokes the 
+        command, etc.
     """
     def __init__(self, printer: 'Printer', host, port=None, user=None):
         self.printer = printer

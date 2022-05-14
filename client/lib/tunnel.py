@@ -7,19 +7,24 @@ from lib.repeating_timer import RepeatingTimer
 from lib.ssh import SSH
 from lib.printer import Printer
 
+
 class TunnelEvents(Enum):
     CREATED = 1
     CONNECTED = 2
     DISCONNECTED = 3
+
 
 class Tunnel:
     """
         Tunnel abstracts a connection to another box either directly
         or via SSH, and check for open port if it already exists.
 
-        On disconnection it will attempt to reconnect
+        1. If the port is open already it will do nothing
+        2. Otherwise, it will try to create an SSH tunnel
+        3. If the tunnel fails, it will retry.
     """
-    def __init__(self, printer: 'Printer', label, host, remote_port, local_port, message = None, ssh_port=None, user=None, expect_open=False):
+
+    def __init__(self, printer: 'Printer', label, host, remote_port, local_port, message=None, ssh_port=None, user=None, expect_open=False):
         self.printer = printer
         self.label = label
         self.host = host
@@ -29,16 +34,15 @@ class Tunnel:
         self.local_port = local_port
         self.timer = None
         self.message = message
-        self.connected = None
         self.connection = None
         self.port_status = None
 
         self.ssh_port = ssh_port
         self.user = user
         self.handlers = []
+        self.add_handler(self._report_status)
         self.done = False
         self.expect_open = expect_open
-
 
     def add_handler(self, handler):
         """
@@ -53,7 +57,6 @@ class Tunnel:
         for handler in self.handlers:
             handler(self.label, event)
 
-        
     @staticmethod
     def is_port_open(port) -> bool:
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
@@ -66,22 +69,23 @@ class Tunnel:
         if self.done:
             return
 
-        if status == TunnelEvents.CONNECTED: 
-            self.printer.print(f'Connected {self.label} as localhost:{self.local_port}')
+        if status == TunnelEvents.CONNECTED:
+            self.printer.print(
+                f'Connected {self.label} as localhost:{self.local_port}')
             if self.message:
                 self.printer.print(f'\t{self.status_message()}')
             return
 
         if status == TunnelEvents.DISCONNECTED:
-            self.printer.print(f'Lost connection to {self.label} ({self.local_port}, will retry')
+            self.printer.print(
+                f'Lost connection to {self.label} (localhost:{self.local_port}), will retry')
 
-     
-       
     def is_connected(self) -> bool:
         return self._check_connection()
 
     def start(self):
         self.done = False
+
         result = self._poll()
 
         if self.timer is None:
@@ -102,51 +106,29 @@ class Tunnel:
 
     def status_message(self):
         message = "(Not connected)"
-        if self.connected:
+        if self.port_status:
             if self.message:
-                message = self.message.replace("LOCAL_PORT", str(self.local_port))
+                message = self.message.replace(
+                    "LOCAL_PORT", str(self.local_port))
             else:
                 message = "(Connected)"
         return message
 
-
     def _poll(self):
-        open = self._check_connection()
-        if open or self.expect_open:
-            return open
-            
+        is_open = self._check_connection()
+        if is_open or self.expect_open:
+            return is_open
 
         if self._create_connection():
             return True
 
-        
-        
-        # if not success:
-        #     success = self._create_connection()
-        
-        # if success == self.connected:
-        #     return success
-
-        # was_connected = self.connected
-        # self.connected = success
-        # if success:    
-        #     self.printer.print(f'Connected {self.label} as localhost:{self.local_port}')
-        #     if self.message:
-        #         self.printer.print(f'\t{self.status_message()}')
-        #     return success
-
-        # if was_connected:
-        #     self.printer.print(f'Lost connection to {self.label} ({self.local_port}, will retry')
-        #     return False
-        
         self.printer.print(f'Failed to connect to {self.label}')
         return False
-      
-    
+
     def get_open_port(self):
-        
+
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("",0))
+        s.bind(("", 0))
         s.listen(1)
         port = s.getsockname()[1]
         s.close()
@@ -154,7 +136,8 @@ class Tunnel:
 
     def _ensure_local_port(self):
         if not self.local_port:
-            self.local_port = SSH.find_existing(self.ssh_port, self.remote_port)
+            self.local_port = SSH.find_existing(
+                self.ssh_port, self.remote_port)
 
         if not self.local_port:
             self.local_port = self.get_open_port()
@@ -167,9 +150,10 @@ class Tunnel:
             ssh = SSH(self.printer, self.host, self.ssh_port, self.user)
             self.connection = ssh.forward(self.remote_port, self.local_port)
             if not self.connection.ensure():
-                self.printer.print(f'Failed to set up connection to {self.label} on port {self.local_port}')
+                self.printer.print(
+                    f'Failed to set up connection to {self.label} on port {self.local_port}')
                 return False
-    
+
         return self._check_connection()
 
     def _check_connection(self):
@@ -184,7 +168,7 @@ class Tunnel:
             self.port_status = result
             if result:
                 self._raise(TunnelEvents.CONNECTED)
-            else:
+            elif port_status:
                 self._raise(TunnelEvents.DISCONNECTED)
 
         return result
