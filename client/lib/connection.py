@@ -197,7 +197,7 @@ class Connection:
             with open(ssh_config_path, "r") as cfg:
                 ssh_config = cfg.read()
 
-            if ssh_config.index(include) != -1:
+            if ssh_config.find(include) != -1:
                 return
             
         ssh_config = f'{include}\n{ssh_config}'
