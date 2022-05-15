@@ -9,6 +9,7 @@ from lib.connection import Connection
 from lib.printer import Printer
 from lib.container import Container
 from lib.ssh import SSH
+from lib.api import API
 
 class DockerEnvClient(Printer):
     """
@@ -22,11 +23,10 @@ class DockerEnvClient(Printer):
         self.hostport = f'{host}:{port}'
         self.user = user
         self.connections = {} # name => connection
-        self.headers_list = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
         self._in_ssh = False
+
+        self.api_tunnel = None
+        self.api = container.create(API, self.container, self.host, self.port, self.user)
 
     def print(self, msg: str, end='\n'):
         if self._in_ssh:
@@ -36,47 +36,6 @@ class DockerEnvClient(Printer):
             print("\r[ --- ]\r\n")
         else:
             print("| " + msg)
-        
-
-    def _url(self, path):
-        return f'/spaces/{self.user}{path}'
-
-    def _request(self, path, method='GET', payload=None, fatal=True):
-        conn = http.client.HTTPConnection(self.host, self.port)
-
-        try:
-            url = self._url(path)
-            body = None
-
-            if payload:
-                body = json.dumps(payload)
-            conn.request(method, url, body=body, headers=self.headers_list)
-
-            response = conn.getresponse()
-
-            body = response.read()
-            content = None
-
-
-            if len(body) > 0:
-                try:
-                    content = json.loads(body)
-                except json.JSONDecodeError:
-                    self.print(f'ERROR: not json: {body}')
-                    content = {"error": body}
-
-            return {
-                "status": response.status,
-                "content": content,
-                "response": response
-            }
-        except ConnectionRefusedError:
-            if fatal:
-                self.print(f'Cannot contact {self.host}:{self.port}, is it running?')
-                sys.exit(1)
-            return False
-        finally:
-            conn.close()
 
     def init(self):
         self.api_tunnel = self.container.create(Tunnel, self.container, "API", self.host, 3001, self.port)
@@ -120,10 +79,10 @@ class DockerEnvClient(Printer):
             if pubkey_file:
                 pubkey_file.close()
 
-        response = self._request("", "POST", opts)
-        status_code = response["status"]
+        response = self.api.request("", "POST", opts)
+        status_code = response.status_code
         if status_code == 200 or status_code == 201:
-            instance = response.get('content', {})
+            instance = response.content
             self.print(f'Created {instance["name"]}')
             self.print(f'\tSSH Port: {instance["ssh_port"]}')
             self.print(f'Run `connect {instance["name"]}` to start tunnels')
@@ -133,8 +92,8 @@ class DockerEnvClient(Printer):
             self.print(f'Unexpected response {status_code}')
 
     def destroy(self, name):
-        response = self._request(f'/{name}', "DELETE")
-        status_code = response["status"]
+        response = self.api.request(f'/{name}', "DELETE")
+        status_code = response.status_code
         
         if status_code == 200:
             self.disconnect(name)
@@ -145,9 +104,9 @@ class DockerEnvClient(Printer):
             self.print(f'Unexpected response {status_code}')
 
     def _get_instance(self, name):
-        response = self._request(f'/{name}')
-        status_code = response["status"]
-        instance = response["content"]
+        response = self.api.request(f'/{name}')
+        status_code = response.status_code
+        instance = response.content
 
         if status_code == 200:
             return instance
@@ -200,10 +159,10 @@ class DockerEnvClient(Printer):
             self.print(f'Not connected, \'connect {name}\' to connect tunnels.')
 
     def list(self):
-        response = self._request("")
-        status_code =response["status"]
+        response = self.api.request("")
+        status_code = response.status_code
         if status_code == 200:
-            instances = response["content"]
+            instances = response.content
             if len(instances) == 0:
                 self.print("No spaces active")
                 return
@@ -226,7 +185,7 @@ class DockerEnvClient(Printer):
             if show_connected:
                 self.print("\n\t (*) Connected")
             return
-        self.print(f'Unexpected status {response["status"]}')
+        self.print(f'Unexpected status {response.status_code}')
 
     def _is_used(self, port):
         try:
@@ -256,7 +215,7 @@ class DockerEnvClient(Printer):
         connection = self.connections.get(name)
         
         if connection is None:
-            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self._request(f'/{name}'))
+            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self.api.request(f'/{name}'))
             self.connections[name] = connection
 
         if not connection.start():
@@ -323,8 +282,8 @@ class DockerEnvClient(Printer):
             return
 
         self.print('Restarting instance, this may take a bit...', end="")
-        response = self._request(f'/{name}/restart', "POST")
-        status_code = response["status"]
+        response = self.api.request(f'/{name}/restart', "POST")
+        status_code = response.status_code
         if status_code == 200:
             self.print("done")
         else:

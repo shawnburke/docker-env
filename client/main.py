@@ -6,8 +6,7 @@ import lib
 from lib.client import DockerEnvClient
 from lib.commands import RootCommand
 from lib.container import Container
-from lib.ssh import SSH
-from lib.tunnel import Tunnel
+
 
 
 container = Container({
@@ -15,6 +14,7 @@ container = Container({
     lib.SSH: lib.SSH,
     lib.Tunnel: lib.Tunnel,
     lib.Connection: lib.Connection,
+    lib.API: lib.API
 })
 
 if __name__ == '__main__':

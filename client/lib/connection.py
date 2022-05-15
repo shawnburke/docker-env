@@ -90,12 +90,12 @@ class Connection:
     def _poll(self) -> bool:
             # check the instance
         response = self.get_instance(self.name)
-        status_code = response["status"]
+        status_code = response.status_code
         if status_code != 200:
             self.printer.print("Invalid instance name")
             return False
 
-        instance = response["content"]
+        instance = response.content
         ssh_port = instance["ssh_port"]
 
         if not self.is_alive():
