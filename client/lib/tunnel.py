@@ -103,6 +103,7 @@ class Tunnel:
         if self.connection:
             self.connection.kill()
             self.connection = None
+        self._check_connection() # to fire handlers
 
         if self.timer is not None:
             self.timer.cancel()

@@ -92,6 +92,9 @@ class DockerEnvClient(Printer):
             self.print(f'Unexpected response {status_code}')
 
     def destroy(self, name):
+
+        self.disconnect(name, quiet=True)
+
         response = self.api.request(f'/{name}', "DELETE")
         status_code = response.status_code
         
@@ -223,9 +226,10 @@ class DockerEnvClient(Printer):
             return
 
         self.print(f'Successfully connected to {name}')
+        self.print(f'** Access this {name} by running "ssh {name}" at this prompt or on your command line. **')
         return True
 
-    def disconnect(self, name):
+    def disconnect(self, name, quiet=False):
         connection = self.connections.get(name)
         
         if connection is not None:
@@ -234,7 +238,8 @@ class DockerEnvClient(Printer):
             self.print(f'Disconnected from {name}')
             return
 
-        self.print(f'No connection exists for {name}')
+        if not quiet:
+            self.print(f'No connection exists for {name}')
 
     def forward(self, name, label, remote_port, local_port=None):
         connection = self.connections.get(name)

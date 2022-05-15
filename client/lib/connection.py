@@ -3,7 +3,7 @@ import tempfile
 from os import path
 
 from lib.repeating_timer import RepeatingTimer
-from lib.tunnel import Tunnel
+from lib.tunnel import Tunnel, TunnelEvents
 from lib.printer import Printer
 from lib.container import Container
 
@@ -38,6 +38,7 @@ class Connection:
         if self.is_alive():
             self.timer.cancel()
             self.tunnel.stop()
+            self.tunnel.remove_handler(self._tunnel_status_changed)
             for t in self.tunnels.values():
                 t.stop()
             self.tunnels = {}
@@ -101,8 +102,10 @@ class Connection:
         if not self.is_alive():
             if self.tunnel:
                 self.tunnel.stop()
+                
 
-            self.tunnel = Tunnel(self.container, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
+            self.tunnel = self.container.create(Tunnel, self.container, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
+            self.tunnel.add_handler(self._tunnel_status_changed)
             if not self.tunnel.start():
                 return False
 
@@ -119,7 +122,7 @@ class Connection:
                 port_info["label"], 
                 remote_port,
                 local_port= self._get_local_port(remote_port),
-                message=port_info.get("message"), 
+                message=port_info.get("message"),
                 check_ssh=False)
 
             if 0 == local_port:
@@ -140,6 +143,12 @@ class Connection:
             del self.tunnels[remote_port]
 
         return True
+
+    def _tunnel_status_changed(self, label, event):
+        if event == TunnelEvents.CONNECTED:
+            self._ensure_ssh_config(self.tunnel.local_port)
+        elif event == TunnelEvents.DISCONNECTED:
+            self._remove_ssh_config()
 
     def tunnel_for_port(self, port) -> 'Tunnel':
         if port in self.tunnels:
@@ -164,3 +173,53 @@ class Connection:
 
         self.printer.print(f'Unable to start tunnel to {self.name} {label} port={local_port}')
         return 0
+
+    def _create_ssh_config(self, name, port) -> str:
+        ssh_config = f'''Host {name}
+            HostName localhost
+            Port {port}
+            ForwardAgent yes
+            User {self.user}
+        '''
+        return ssh_config
+
+
+    def _get_ssh_config_dir(self):
+        target = os.path.expanduser("~/.ssh/docker-env")
+        os.makedirs(target, exist_ok=True)
+        return target
+
+    def _setup_ssh_config_include(self):
+        ssh_config_path = os.path.expanduser("~/.ssh/config")
+        include = "Include docker-env/*"
+        ssh_config = ""
+        if os.path.exists(ssh_config_path):
+            with open(ssh_config_path, "r") as cfg:
+                ssh_config = cfg.read()
+
+            if ssh_config.index(include) != -1:
+                return
+            
+        ssh_config = f'{include}\n{ssh_config}'
+        with open(ssh_config_path, "w") as cfg:
+            cfg.write(ssh_config)
+
+    def _ensure_ssh_config(self, port):
+        target = self._get_ssh_config_dir()
+        content = self._create_ssh_config(self.name, port)
+        target = path.join(target, self.name)
+        exists = os.path.exists(target)
+        with open(target, "w") as f:
+            f.write(content)
+
+        self._setup_ssh_config_include()
+
+        if not exists:
+            self.printer.print(f'Created ssh config entry {self.name}, use "ssh {self.name}" to access instance')
+
+    def _remove_ssh_config(self):
+        target = self._get_ssh_config_dir()
+        target = path.join(target, self.name)
+        if os.path.exists(target):
+            os.remove(target)
+            self.printer.print(f'Removed SSH config entry for {self.name}')
