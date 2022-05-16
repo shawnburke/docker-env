@@ -54,7 +54,11 @@ Success! We've now connected!
 
 ## Accessing the instance via SSH
 
-To SSH to the instance, run `env-server>  ssh devbox`.  This will give you an SSH prompt to the box:
+To SSH to the instance, you can do so within the prompt or outside on the command line.
+
+A SSH config has been created automatically, so from your command prompt, just run `ssh devbox` and you're set. This also works for tools like VSCode Remote SSH.
+
+At the docker-env prompt, run `env-server>  ssh devbox`.  This will give you an SSH prompt to the box:
 
 ```
 env-server> ssh demo
@@ -73,7 +77,15 @@ Last login: Thu Apr 21 03:11:23 2022 from 172.24.0.1
 sburke@sburke-demo:~$ 
 ```
 
-Note the raw SSH command is printed at the top if you want to do the same outside of the instance.
+## Managing the instance
+
+There are commands for instance management:
+
+* `info devbox` will print the currently connected ports
+* `destroy devbox` will PERMANENTLY destroy the instance
+* `restart devbox` will stop the instance and restart it, useful to upgrade the underlying container image. NOTE you will lose anything outside of your home directory in this operation. 
+
+_NOTE: currently the password for the instance is your username.  Will be adding the ability to customize this soon_
 
 ## Accessing with tools
 
@@ -81,7 +93,9 @@ Note the raw SSH command is printed at the top if you want to do the same outsid
 To access with VSCode, ensure you have the "Remote SSH" extension installed.
 
 1. Command Palette >> "Remote SSH Connect to Host..."
-2. Use the SSH port from above `localhost:35385`
+2. Select the appropriate instance `devbox` from the list of hosts.
+
+Done!
 
 ### Accessing with IntelliJ Remote
 IntelliJ support is already installed in the base image.
@@ -100,15 +114,17 @@ First, SSH to your instance and clone whatever code you plan to work on.
 VSCode in-browser support is already provided using the Coder.com [Code Server](https://github.com/coder/code-server) project.
 
 1. SSH to your instance
-2. Run `start-code-server`
+2. Logging in will automatically start the code server. Run `start-code-server check` to verify.
 3. After a few seconds you'll see output that the client (assuming it has done `connect [name]`) has noticed the new port:
 
 ```
-Connected VSCode Browser as localhost:59564
-        Connect to VSCode browser at http://localhost:59564
+[ -- docker-env -- ]
+| Connected VSCode Browser as localhost:59564
+|       Connect to VSCode browser at http://localhost:59564
+[ -- ]
 ```
 
-Click on that link and you're off and running!
+Click on that link and you're off and running!  Just navigate to your folder of choice.
 
 ### Accessing with In-Browser IDEA
 
@@ -119,9 +135,9 @@ This works best if you open a second instance of the client.
 3. Once its running, you'll see that the port has been noticed by the client:
 
 ```
-kraken-dev-941> 
-Connected IntelliJ Projector as localhost:60669
-        Connect to IntelliJ browser at http://localhost:60669
+envserver > 
+|Connected IntelliJ Projector as localhost:60669
+|       Connect to IntelliJ browser at http://localhost:60669
 ```
 
 Click the link and off you go.  
