@@ -1,0 +1,172 @@
+openapi: '3.0.2'
+info:
+  title: docker-env
+  version: '1.0'
+servers:
+  - url: http://localhost:3001/
+paths:
+  /health:
+    get:
+      description: "Health check"
+      responses:
+        '200':
+          description: "all good"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+            text/plain:
+              schema:
+                type: string
+        
+  /spaces/{user}:
+    get:
+        description: "Get list of instances for user"
+        parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+        responses:
+          '200':
+            description: "List of instances for the user"
+            content: 
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Instance'
+    post:
+      description: "Create a new instance"
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          'application/json':
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                name:
+                  type: string
+                  description: "Instance Name"
+                image:
+                  type: string
+                password:
+                  type: string
+                pubkey:
+                  type: string
+      responses:
+        '200':
+          description: "Newly created instance"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instance'
+
+        '400':
+          description: "Error"
+  /spaces/{user}/{name}:
+      get:
+          description: "Get instance detail"
+          parameters:
+          - name: user
+            in: path
+            required: true
+            schema:
+              type: string
+          - name: name
+            in: path
+            required: true
+            schema:
+              type: string
+          responses:
+            '200':
+              description: "Instance info"
+              content: 
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Instance'
+      delete:
+        description: "Destroy an instance"
+        parameters:
+          - name: user
+            in: path
+            required: true
+            schema:
+              type: string
+          - name: name
+            in: path
+            required: true
+            schema:
+              type: string
+        responses:
+            '200':
+              description: "Instance destroyed"
+            '404':
+              description: "Not found"
+  /spaces/{user}/{name}/restart:
+    post:
+      parameters:
+          - name: user
+            in: path
+            required: true
+            schema:
+              type: string
+          - name: name
+            in: path
+            required: true
+            schema:
+              type: string
+      responses:
+          '200':
+            description: "Instance restarted"
+          '404':
+            description: "Not found"
+
+                    
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    Instance:
+      type: object
+      properties:
+        name:
+          type: string
+        user:
+          type: string
+        status:
+          type: string
+        ssh_port:
+          type: integer
+        host:
+          type: string
+        ports:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              message:
+                type: string
+              port:
+                type: integer
+              remote_port:
+                type: integer
+    
