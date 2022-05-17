@@ -9,46 +9,30 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/mux"
+	chi "github.com/go-chi/chi/v5"
+	openapi_server "github.com/shawnburke/docker-env/backend/.gen/server"
 	"github.com/shawnburke/docker-env/backend/spaces"
 )
 
 var manager spaces.Manager
 
 type router struct {
-	*mux.Router
+	*chi.Mux
 	manager spaces.Manager
 }
 
 func New(manager spaces.Manager) http.Handler {
 
-	r := mux.NewRouter()
+	r := chi.NewRouter()
 
 	ret := &router{
-		Router:  r,
+		Mux:     r,
 		manager: manager,
 	}
 
 	r.Use(loggingMiddleware)
 
-	r.Path("/health").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		accept := strings.ToLower(r.Header.Get("Accept"))
-		switch accept {
-		case "application/json":
-			w.Write([]byte(`{"result":"OK"}`))
-		default:
-			w.Write([]byte("OK"))
-		}
-
-	})
-	spaces := r.PathPrefix("/spaces").Subrouter()
-	spaces.HandleFunc("/{user}", ret.createSpace).Methods("POST")
-	spaces.HandleFunc("/{user}", ret.listSpaces).Methods("GET")
-	spaces.HandleFunc("/{user}/{name}", ret.getSpace).Methods("GET")
-	spaces.HandleFunc("/{user}/{name}/restart", ret.restartSpace).Methods("POST")
-	spaces.HandleFunc("/{user}/{name}", ret.removeSpace).Methods("DELETE")
-
+	openapi_server.HandlerFromMux(ret, r)
 	return ret
 }
 
@@ -69,10 +53,40 @@ type createSpaceRequest struct {
 	Image    string `json:"image"`
 }
 
-func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-	user := vars["user"]
+func (r *router) GetSpacesUser(w http.ResponseWriter, req *http.Request, user string) {
+	instances, err := r.manager.List(user)
 
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("error getting: %v", err)))
+		return
+	}
+
+	raw, err := json.Marshal(instances)
+
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
+		return
+	}
+
+	w.Write(raw)
+	w.Header().Add("Content-Type", "application/json")
+}
+
+func (r *router) GetHealth(w http.ResponseWriter, req *http.Request) {
+	accept := strings.ToLower(req.Header.Get("Accept"))
+	switch accept {
+	case "application/json":
+		w.Write([]byte(`{"result":"OK"}`))
+	default:
+		w.Write([]byte("OK"))
+	}
+
+}
+
+// (POST /spaces/{user})
+func (r *router) PostSpacesUser(w http.ResponseWriter, req *http.Request, user string) {
 	csr := &createSpaceRequest{}
 
 	body, err := ioutil.ReadAll(req.Body)
@@ -120,40 +134,20 @@ func (r *router) createSpace(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 	w.Header().Add("Location", fmt.Sprintf("http://localhost:%v/spaces/%s/%s", 3000, user, csr.Name))
 	w.Write(raw)
-
 }
 
-func (r *router) listSpaces(w http.ResponseWriter, req *http.Request) {
+// (DELETE /spaces/{user}/{name})
+func (r *router) DeleteSpacesUserName(w http.ResponseWriter, req *http.Request, user string, name string) {
+	err := r.manager.Kill(user, name)
 
-	vars := mux.Vars(req)
-	user := vars["user"]
-
-	instances, err := r.manager.List(user)
-
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("error getting: %v", err)))
+	if os.IsNotExist(err) {
+		w.WriteHeader(404)
 		return
 	}
-
-	raw, err := json.Marshal(instances)
-
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("Error marshalling: %v", err)))
-		return
-	}
-
-	w.Write(raw)
-	w.Header().Add("Content-Type", "application/json")
 }
 
-func (r *router) getSpace(w http.ResponseWriter, req *http.Request) {
-
-	vars := mux.Vars(req)
-	user := vars["user"]
-	name := vars["name"]
-
+// (GET /spaces/{user}/{name})
+func (r *router) GetSpacesUserName(w http.ResponseWriter, req *http.Request, user string, name string) {
 	instance, err := r.manager.Get(user, name, true)
 
 	if os.IsNotExist(err) {
@@ -180,12 +174,8 @@ func (r *router) getSpace(w http.ResponseWriter, req *http.Request) {
 	w.Write(raw)
 }
 
-func (r *router) restartSpace(w http.ResponseWriter, req *http.Request) {
-
-	vars := mux.Vars(req)
-	user := vars["user"]
-	name := vars["name"]
-
+// (POST /spaces/{user}/{name}/restart)
+func (r *router) PostSpacesUserNameRestart(w http.ResponseWriter, req *http.Request, user string, name string) {
 	err := r.manager.Restart(user, name)
 
 	if os.IsNotExist(err) {
@@ -196,19 +186,5 @@ func (r *router) restartSpace(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write([]byte(err.Error()))
-	}
-}
-
-func (r *router) removeSpace(w http.ResponseWriter, req *http.Request) {
-
-	vars := mux.Vars(req)
-	user := vars["user"]
-	name := vars["name"]
-
-	err := r.manager.Kill(user, name)
-
-	if os.IsNotExist(err) {
-		w.WriteHeader(404)
-		return
 	}
 }

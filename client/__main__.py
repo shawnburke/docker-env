@@ -7,14 +7,12 @@ from lib.client import DockerEnvClient
 from lib.commands import RootCommand
 from lib.container import Container
 
-
-
 container = Container({
     lib.Printer: lib.Printer(),
     lib.SSH: lib.SSH,
     lib.Tunnel: lib.Tunnel,
     lib.Connection: lib.Connection,
-    lib.API: lib.API
+    lib.API: lib.API,
 })
 
 if __name__ == '__main__':

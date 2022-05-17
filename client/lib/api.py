@@ -1,27 +1,19 @@
-from dataclasses import dataclass
-import os
-import http.client
-import json
-import sys
-import socket
+from typing import List
 
-from lib.tunnel import Tunnel
-from lib.connection import Connection
 from lib.printer import Printer
 from lib.container import Container
-from lib.ssh import SSH
 
+from lib.docker_env_client import Client
+from lib.docker_env_client.api.default import get_spaces_user, get_spaces_user_name, get_health, post_spaces_user, post_spaces_user_name_restart, delete_spaces_user_name
+from lib.docker_env_client.models import Instance, GetHealthResponse200, PostSpacesUserJsonBody
+from lib.docker_env_client.types import Response
 
 headers_list = {
     "Accept": "application/json",
     "Content-Type": "application/json"
 }
 
-@dataclass
-class APIResponse:
-    status_code: int
-    content: dict
-    response: 'http.client.HTTPResponse'
+
 
 
 class API:
@@ -30,44 +22,27 @@ class API:
         self.port = port
         self.user = user
         self.printer = container.get(Printer)
+        self.api_client = Client(base_url=f'http://{host}:{port}', timeout=60)
 
-    def _url(self, path):
-        return f'/spaces/{self.user}{path}'
+    def get_instance(self, user, name) -> Response['Instance']:
+        response = get_spaces_user_name.sync_detailed(user=user, name=name, client=self.api_client)
+        if response.status_code == 200:
+            return response
+        return None
 
-    def request(self, path, method='GET', payload=None, fatal=True) -> APIResponse:
-        conn = http.client.HTTPConnection(self.host, self.port)
+    def list_instances(self, user) -> Response[List['Instance']]:
+        return get_spaces_user.sync_detailed(user=user, client=self.api_client)
 
-        try:
-            url = self._url(path)
-            body = None
+    def get_health(self) -> 'GetHealthResponse200':
+        return get_health.sync(client=self.api_client)
 
-            if payload:
-                body = json.dumps(payload)
-            conn.request(method, url, body=body, headers=headers_list)
+    def create_instance(self, user, name, pubkey=None, password=None, image=None) -> Response['Instance']:
+        args = PostSpacesUserJsonBody(user=user, name=name, pubkey=pubkey,password=password,image=image)
+        return post_spaces_user.sync_detailed(user=user, client=self.api_client, json_body=args)
 
-            response = conn.getresponse()
+    def restart_instance(self, user, name) -> Response:
+        return post_spaces_user_name_restart.sync_detailed(user=user,name=name, client=self.api_client)
 
-            body = response.read()
-            content = None
-
-
-            if len(body) > 0:
-                try:
-                    content = json.loads(body)
-                except json.JSONDecodeError:
-                    self.printer.print(f'ERROR: not json: {body}')
-                    content = {"error": body}
-
-            return APIResponse(response.status, content, response)
-
-        except ConnectionRefusedError:
-            if fatal:
-                self.printer.print(f'Cannot contact {self.host}:{self.port}, is it running?')
-                sys.exit(1)
-            return None
-        finally:
-            conn.close()
-
-
-
+    def delete_instance(self, user, name) -> Response:
+        return delete_spaces_user_name.sync_detailed(user=user,name=name, client=self.api_client)
 
