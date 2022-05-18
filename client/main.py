@@ -6,6 +6,8 @@ import lib
 from lib.client import DockerEnvClient
 from lib.commands import RootCommand
 from lib.container import Container
+from lib.openapi.openapi_client.api.default_api import DefaultApi
+
 
 
 
@@ -14,7 +16,8 @@ container = Container({
     lib.SSH: lib.SSH,
     lib.Tunnel: lib.Tunnel,
     lib.Connection: lib.Connection,
-    lib.API: lib.API
+    lib.API: lib.API,
+    DefaultApi: DefaultApi,
 })
 
 if __name__ == '__main__':

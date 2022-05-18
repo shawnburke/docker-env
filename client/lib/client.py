@@ -1,3 +1,4 @@
+from email.mime import base
 import os
 import http.client
 import json
@@ -10,6 +11,9 @@ from lib.printer import Printer
 from lib.container import Container
 from lib.ssh import SSH
 from lib.api import API
+from lib.docker_env_client import Client
+from lib.docker_env_client.api.default import get_spaces_user
+
 
 class DockerEnvClient(Printer):
     """
@@ -27,6 +31,14 @@ class DockerEnvClient(Printer):
 
         self.api_tunnel = None
         self.api = container.create(API, self.container, self.host, self.port, self.user)
+
+        self.api_client = Client(base_url="http://" + self.hostport)
+
+
+        # conf = Configuration(host="http://" +self.hostport)
+        # api_client = ApiClient(conf)
+        # self.api_client : 'DefaultApi'
+        # self.api_client = container.create(DefaultApi, api_client)
 
     def print(self, msg: str, end='\n'):
         if self._in_ssh:
@@ -162,6 +174,9 @@ class DockerEnvClient(Printer):
             self.print(f'Not connected, \'connect {name}\' to connect tunnels.')
 
     def list(self):
+
+        r = get_spaces_user.sync(user=self.user,client=self.api_client)
+
         response = self.api.request("")
         status_code = response.status_code
         if status_code == 200:
