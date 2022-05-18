@@ -91,13 +91,13 @@ class Connection:
     def _poll(self) -> bool:
             # check the instance
         response = self.get_instance(self.name)
-        status_code = response.status_code
-        if status_code != 200:
+     
+        if  response.status_code != 200:
             self.printer.print("Invalid instance name")
             return False
 
-        instance = response.content
-        ssh_port = instance["ssh_port"]
+        instance = response.parsed
+        ssh_port = instance.ssh_port
 
         if not self.is_alive():
             if self.tunnel:
@@ -111,18 +111,18 @@ class Connection:
 
         # walk the other ports
         seen = {}
-        for port_info in instance.get("ports", []):
-            remote_port = port_info["remote_port"]
+        for port_info in instance.ports:
+            remote_port = port_info.remote_port
             seen[remote_port] = True
 
             if remote_port in self.tunnels:
                 continue
 
             local_port = self.forward_port(
-                port_info["label"], 
+                port_info.label, 
                 remote_port,
                 local_port= self._get_local_port(remote_port),
-                message=port_info.get("message"),
+                message=port_info.message,
                 check_ssh=False)
 
             if 0 == local_port:

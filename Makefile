@@ -15,12 +15,11 @@ CLIENT_PATH=client/openapi/openapi_client/deault_api.py
 $(CLIENT_PATH): openapi/openapi.yaml
 	if ! which openapi-python-client; then pip3 install openapi-python-client; fi
 	cmd=generate
-	if [ -d docker-env-client-client ];\
-		then openapi-python-client update --path openapi/openapi.yaml; \
-		else openapi-python-client generate --path openapi/openapi.yaml;  \
-		fi
+	rm -rf docker-env-client
+	openapi-python-client generate --path openapi/openapi.yaml
 	rm -rf client/lib/docker_env_client
 	mv docker-env-client/docker_env_client client/lib/docker_env_client
+	rm -rf docker-env-client
 	
 
 openapi: $(SERVER_STUB_PATH)/server.go $(CLIENT_PATH)

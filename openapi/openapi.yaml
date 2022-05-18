@@ -67,7 +67,7 @@ paths:
                 pubkey:
                   type: string
       responses:
-        '200':
+        '201':
           description: "Newly created instance"
           content:
             application/json:

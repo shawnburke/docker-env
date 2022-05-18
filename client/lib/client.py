@@ -1,9 +1,7 @@
-from email.mime import base
-import os
-import http.client
-import json
+
 import sys
 import socket
+
 
 from lib.tunnel import Tunnel
 from lib.connection import Connection
@@ -11,8 +9,6 @@ from lib.printer import Printer
 from lib.container import Container
 from lib.ssh import SSH
 from lib.api import API
-from lib.docker_env_client import Client
-from lib.docker_env_client.api.default import get_spaces_user
 
 
 class DockerEnvClient(Printer):
@@ -30,15 +26,9 @@ class DockerEnvClient(Printer):
         self._in_ssh = False
 
         self.api_tunnel = None
+        self.api : 'API'
         self.api = container.create(API, self.container, self.host, self.port, self.user)
 
-        self.api_client = Client(base_url="http://" + self.hostport)
-
-
-        # conf = Configuration(host="http://" +self.hostport)
-        # api_client = ApiClient(conf)
-        # self.api_client : 'DefaultApi'
-        # self.api_client = container.create(DefaultApi, api_client)
 
     def print(self, msg: str, end='\n'):
         if self._in_ssh:
@@ -64,64 +54,48 @@ class DockerEnvClient(Printer):
         """
             Create an instance, with optional password and pubkey
         """
-        opts = {
-            "user": self.user,
-            "name": name,
-            "password": password,
-        }
-
-        if image:
-            opts["image"] = image
-
-        
+       
         # load the pubkey
-        pubkey_file = None
+
+        pubkey = None
         try:
             # read whole file to a string
-            if pubkey_path == None:
+            if pubkey_path is None:
                 pubkey_path = "~/.ssh/id_rsa.pub"
-            pubkey_file = open(pubkey_path, "r")
-            opts["pubkey"] = pubkey_file.read()
+            with open(pubkey_path, "r") as pubkey_file:
+                pubkey = pubkey_file.read()
         except FileNotFoundError:
             if password is None:
                 self.print(f'Error: No pubkey found ({pubkey_path}), must supply password via "--password"')
                 sys.exit(1)
-        finally:
-            # close file
-            if pubkey_file:
-                pubkey_file.close()
+    
+        response = self.api.create_instance(user=self.user, name=name, pubkey=pubkey,image=image,password=password)
 
-        response = self.api.request("", "POST", opts)
-        status_code = response.status_code
-        if status_code == 200 or status_code == 201:
-            instance = response.content
-            self.print(f'Created {instance["name"]}')
-            self.print(f'\tSSH Port: {instance["ssh_port"]}')
-            self.print(f'Run `connect {instance["name"]}` to start tunnels')
-        elif status_code == 409:
+        if response.status_code == 201:
+            instance = response.parsed
+            self.print(f'Created {instance.name}')
+            self.print(f'\tSSH Port: {instance.ssh_port}')
+            self.print(f'Run `connect {instance.name}` to start tunnels')
+        elif response.status_code == 409:
             self.print(f'Instance {name} already exists')
         else:
-            self.print(f'Unexpected response {status_code}')
+            self.print(f'Unexpected response {response.status_code}')
 
     def destroy(self, name):
+        response = self.api.delete_instance(self.user, name)
 
-        self.disconnect(name, quiet=True)
-
-        response = self.api.request(f'/{name}', "DELETE")
-        status_code = response.status_code
-        
-        if status_code == 200:
-            self.disconnect(name)
+        if response.status_code == 200:   
+            self.disconnect(name, quiet=True)
             self.print("Successfully deleted instance")
-        elif status_code == 404:
+        elif response.status_code == 404:
             self.print(f'Unknown instance "{name}"')
         else:
             self.print(f'Unexpected response {status_code}')
 
     def _get_instance(self, name):
-        response = self.api.request(f'/{name}')
+        response = self.api.get_instance(self.user, name)
         status_code = response.status_code
-        instance = response.content
+        instance = response.parsed
 
         if status_code == 200:
             return instance
@@ -140,9 +114,9 @@ class DockerEnvClient(Printer):
             self.print("Can't find an instance of that name.")
             return None
 
-        self.print(f'Instance {instance["name"]} is {instance["status"]}')
-        self.print(f'\tSSH Port: {instance["ssh_port"]}')
-        ports = instance.get("ports", [])
+        self.print(f'Instance {instance.name} is {instance.status}')
+        self.print(f'\tSSH Port: {instance.ssh_port}')
+        ports = instance.ports
 
         c = None
         if name in self.connections:
@@ -163,24 +137,22 @@ class DockerEnvClient(Printer):
 
                 self.print(f'\t{p["label"]}: {port} {message}')
         self.print('')
-        stats = instance.get('container_stats', None)
-        if stats is not None:
-            mem = stats["memory_stats"]["usage"]
-            cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-            self.print(f'\tMemory: {mem / (1024*1024)}mb')
-            self.print(f'\tCPU: {cpu / 1000000000} cores (WIP! {cpu})')
-            self.print('')
+        # stats = instance.container_stats
+        # if stats is not None:
+        #     mem = stats["memory_stats"]["usage"]
+        #     cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
+        #     self.print(f'\tMemory: {mem / (1024*1024)}mb')
+        #     self.print(f'\tCPU: {cpu / 1000000000} cores (WIP! {cpu})')
+        #     self.print('')
         if not c:
             self.print(f'Not connected, \'connect {name}\' to connect tunnels.')
 
     def list(self):
 
-        r = get_spaces_user.sync(user=self.user,client=self.api_client)
-
-        response = self.api.request("")
+        response = self.api.list_instances(user=self.user)
         status_code = response.status_code
         if status_code == 200:
-            instances = response.content
+            instances = response.parsed
             if len(instances) == 0:
                 self.print("No spaces active")
                 return
@@ -191,12 +163,12 @@ class DockerEnvClient(Printer):
             show_connected = False
             for instance in instances:
                 ssh="not connected"
-                status = instance["status"]
-                name = instance["name"]
+                status = instance.status
+                name = instance.name
                 if name in self.connections:
                     status = f'{status} (*)'
                     show_connected = True
-                    ssh = f'ssh -p {instance["ssh_port"]} {instance["user"]}@localhost'
+                    ssh = f'ssh {instance.name}'
                 
                 self.print(format_str.format(name ,status, ssh))
 
@@ -226,14 +198,14 @@ class DockerEnvClient(Printer):
         info = self._get_instance(name)
         if info is None:
             self.print(f'Can not find running instance {name}')
-            return 
+            return
     
-        host = info.get("host", self.host)
+        host = info.host or self.host
         
         connection = self.connections.get(name)
         
         if connection is None:
-            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self.api.request(f'/{name}'))
+            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self.api.get_instance(self.user, name))
             self.connections[name] = connection
 
         if not connection.start():
@@ -278,7 +250,7 @@ class DockerEnvClient(Printer):
             self.print(f'Failed to connect to {name}')
             return
 
-        ssh_port = instance["ssh_port"]
+        ssh_port = instance.ssh_port
 
         if not self._is_used(ssh_port):
             self.print(f'SSH port is not open, run `docker-env connect {name}` first')
@@ -302,7 +274,7 @@ class DockerEnvClient(Printer):
             return
 
         self.print('Restarting instance, this may take a bit...', end="")
-        response = self.api.request(f'/{name}/restart', "POST")
+        response = self.api.restart_instance(self.user, name)
         status_code = response.status_code
         if status_code == 200:
             self.print("done")
