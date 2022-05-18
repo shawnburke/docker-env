@@ -37,7 +37,7 @@ class Instance:
         ports: Union[Unset, List[Dict[str, Any]]] = UNSET
         if not isinstance(self.ports, Unset):
             ports = []
-            for ports_item_data in self.ports:
+            for ports_item_data in list(self.ports):
                 ports_item = ports_item_data.to_dict()
 
                 ports.append(ports_item)

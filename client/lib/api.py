@@ -1,5 +1,3 @@
-from concurrent.futures import InvalidStateError
-from dataclasses import dataclass
 from typing import List
 
 from lib.printer import Printer
@@ -37,7 +35,7 @@ class API:
 
     def get_health(self) -> 'GetHealthResponse200':
         return get_health.sync(client=self.api_client)
-    
+
     def create_instance(self, user, name, pubkey=None, password=None, image=None) -> Response['Instance']:
         args = PostSpacesUserJsonBody(user=user, name=name, pubkey=pubkey,password=password,image=image)
         return post_spaces_user.sync_detailed(user=user, client=self.api_client, json_body=args)

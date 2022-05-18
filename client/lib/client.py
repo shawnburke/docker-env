@@ -90,7 +90,7 @@ class DockerEnvClient(Printer):
         elif response.status_code == 404:
             self.print(f'Unknown instance "{name}"')
         else:
-            self.print(f'Unexpected response {status_code}')
+            self.print(f'Unexpected response {response.status_code}')
 
     def _get_instance(self, name):
         response = self.api.get_instance(self.user, name)

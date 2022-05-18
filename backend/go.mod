@@ -7,7 +7,6 @@ require (
 	github.com/docker/docker v20.10.14+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/go-chi/chi/v5 v5.0.7
-	github.com/gorilla/mux v1.8.0
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/stretchr/testify v1.7.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
