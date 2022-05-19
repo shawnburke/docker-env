@@ -9,12 +9,12 @@ README = (HERE / "README.md").read_text()
 
 
 setup(
-   name='docker_env_client',
+   name='docker-env-client',
    version='0.1',
    description='Client for docker-env dev server system',
    author='Shawn Burke',
    author_email='shawn@shawnburke.com',
    license="MIT",
-   packages=['docker_env_client'], 
+   packages=['docker-env-client'], 
    install_requires=['httpx', 'attrs'],
 )

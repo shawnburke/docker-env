@@ -2,12 +2,11 @@
 import sys
 import shlex
 
-import lib
-from lib.client import DockerEnvClient
-from lib.commands import RootCommand
-from lib.container import Container
+from docker_env_client import lib
+from docker_env_client.lib.commands import RootCommand
+from docker_env_client.lib.client import DockerEnvClient
 
-container = Container({
+container = lib.Container({
     lib.Printer: lib.Printer(),
     lib.SSH: lib.SSH,
     lib.Tunnel: lib.Tunnel,

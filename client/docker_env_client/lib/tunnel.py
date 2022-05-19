@@ -3,10 +3,10 @@ from argparse import ArgumentError
 from contextlib import closing
 import socket
 from enum import Enum
-from lib.repeating_timer import RepeatingTimer
-from lib.ssh import SSH
-from lib.printer import Printer
-from lib.container import Container
+from .repeating_timer import RepeatingTimer
+from .ssh import SSH
+from .printer import Printer
+from .container import Container
 
 
 class TunnelEvents(Enum):

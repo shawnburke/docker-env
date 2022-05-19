@@ -3,12 +3,12 @@ import sys
 import socket
 
 
-from lib.tunnel import Tunnel
-from lib.connection import Connection
-from lib.printer import Printer
-from lib.container import Container
-from lib.ssh import SSH
-from lib.api import API
+from .tunnel import Tunnel
+from .connection import Connection
+from .printer import Printer
+from .container import Container
+from .ssh import SSH
+from .api import API
 
 
 class DockerEnvClient(Printer):

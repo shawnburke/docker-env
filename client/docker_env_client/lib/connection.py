@@ -2,10 +2,10 @@ import os
 import tempfile
 from os import path
 
-from lib.repeating_timer import RepeatingTimer
-from lib.tunnel import Tunnel, TunnelEvents
-from lib.printer import Printer
-from lib.container import Container
+from .repeating_timer import RepeatingTimer
+from .tunnel import Tunnel, TunnelEvents
+from .printer import Printer
+from .container import Container
 
 class Connection:
     def __init__(self, container: 'Container', host, user, name, get_instance):

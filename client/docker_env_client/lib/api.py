@@ -1,20 +1,17 @@
 from typing import List
 
-from lib.printer import Printer
-from lib.container import Container
+from .printer import Printer
+from .container import Container
 
-from lib.docker_env_client import Client
-from lib.docker_env_client.api.default import get_spaces_user, get_spaces_user_name, get_health, post_spaces_user, post_spaces_user_name_restart, delete_spaces_user_name
-from lib.docker_env_client.models import Instance, GetHealthResponse200, PostSpacesUserJsonBody
-from lib.docker_env_client.types import Response
+from .api_client import Client
+from .api_client.api.default import get_spaces_user, get_spaces_user_name, get_health, post_spaces_user, post_spaces_user_name_restart, delete_spaces_user_name
+from .api_client.models import Instance, GetHealthResponse200, PostSpacesUserJsonBody
+from .api_client.types import Response
 
 headers_list = {
     "Accept": "application/json",
     "Content-Type": "application/json"
 }
-
-
-
 
 class API:
     def __init__(self, container: 'Container', host, port, user):

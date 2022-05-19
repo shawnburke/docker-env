@@ -5,8 +5,8 @@ import shlex
 import sys
 import re
 import time
-from lib.printer import Printer
-from lib.container import Container
+from .printer import Printer
+from .container import Container
 
 
 class SSH:
