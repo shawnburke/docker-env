@@ -124,7 +124,7 @@ class DockerEnvClient(Printer):
                 
         if ports is not None:
             for p in ports:
-                port = p.get("remote_port") 
+                port = p.remote_port
                 message = ""
                 t = c and c.tunnel_for_port(port)
                 if t:
@@ -257,7 +257,7 @@ class DockerEnvClient(Printer):
             return
 
         ssh = self.container.create(SSH, self.container, "localhost", ssh_port, self.user).session()
-        self.print(ssh.command)
+        self.print(f'To connect outside this prompt: ssh {name}')
         try:
             self._in_ssh = True
             ssh.wait()
