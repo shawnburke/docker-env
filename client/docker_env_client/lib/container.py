@@ -1,7 +1,8 @@
 
 class Container:
-    def __init__(self, contents=None):
+    def __init__(self, contents=None, test_mode=False):
         self.types = {}
+        self.test_mode = test_mode
         for k, v in contents.items():
             self.register(k, v)
 
@@ -9,12 +10,15 @@ class Container:
         self.types[t] = (impl, not isinstance(impl, type))
 
     def create(self, t, *args, **kwargs):
+
         entry = self.types.get(t)
         if entry is None:
             raise ValueError(f'No type {t.name} in container')
 
         if entry[1]:
-            raise ValueError(f'{t.name} is singleton, use get')
+            if not self.test_mode:
+                raise ValueError(f'{t.name} is singleton, use get')
+            return entry[0]
 
         return entry[0](*args, **kwargs)
 

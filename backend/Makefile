@@ -25,13 +25,8 @@ test:
 start: docker-env-server
 	./docker-env-server
 
-start-docker:
+start-docker: openapi
 	./start -r -d
 	echo "Server is now running as daemon, tailing logs... (you can quit this)"
 	docker logs -f docker-env-server
-
-server-standup: server_gen_openapi
-	@echo "Building images..."
-	cd ../workspace-images; ./build-images
-	$(MAKE) start-docker
 	

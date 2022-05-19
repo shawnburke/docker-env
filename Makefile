@@ -18,5 +18,8 @@ test:
 	@echo "Client tests"
 	$(MAKE) -C client test
 
+images:
+	cd workspace-images && ./build-images
+
 server-standup:
-	$(MAKE) -C backend server-standup
+	$(MAKE) -C backend start-docker

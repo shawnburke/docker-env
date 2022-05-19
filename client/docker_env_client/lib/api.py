@@ -22,11 +22,8 @@ class API:
         self.api_client = Client(base_url=f'http://{host}:{port}', timeout=60)
 
     def get_instance(self, user, name) -> Response['Instance']:
-        response = get_spaces_user_name.sync_detailed(user=user, name=name, client=self.api_client)
-        if response.status_code == 200:
-            return response
-        return None
-
+        return get_spaces_user_name.sync_detailed(user=user, name=name, client=self.api_client)
+       
     def list_instances(self, user) -> Response[List['Instance']]:
         return get_spaces_user.sync_detailed(user=user, client=self.api_client)
 

@@ -19,25 +19,28 @@ class DockerEnvClient(Printer):
         self.host = host
         self.port = port
         self.container = container
+
+        # chain in this class as a custom printer
+        self.printer: 'Printer'
+        self.printer = self.container.get(Printer)
         self.container.register(Printer, self)
         self.hostport = f'{host}:{port}'
         self.user = user
         self.connections = {} # name => connection
         self._in_ssh = False
-
         self.api_tunnel = None
         self.api : 'API'
         self.api = container.create(API, self.container, self.host, self.port, self.user)
-
+        
 
     def print(self, msg: str, end='\n'):
         if self._in_ssh:
-            print("\n\r[ --- docker-env client --- ]")
+            self.printer.print("\n\r[ --- docker-env client --- ]")
             for line in msg.split('\n'):
-                print(f'\r| {line}', end=end)
-            print("\r[ --- ]\r\n")
+                self.printer.print(f'\r| {line}', end=end)
+            self.printer.print("\r[ --- ]\r\n")
         else:
-            print("| " + msg)
+            self.printer.print("| " + msg)
 
     def init(self):
         self.api_tunnel = self.container.create(Tunnel, self.container, "API", self.host, 3001, self.port)
@@ -94,6 +97,7 @@ class DockerEnvClient(Printer):
 
     def _get_instance(self, name):
         response = self.api.get_instance(self.user, name)
+        
         status_code = response.status_code
         instance = response.parsed
 
@@ -124,7 +128,7 @@ class DockerEnvClient(Printer):
                 
         if ports is not None:
             for p in ports:
-                port = p.get("remote_port") 
+                port = p.remote_port
                 message = ""
                 t = c and c.tunnel_for_port(port)
                 if t:
@@ -135,7 +139,7 @@ class DockerEnvClient(Printer):
                 if message:
                     message = f'({message})'
 
-                self.print(f'\t{p["label"]}: {port} {message}')
+                self.print(f'\t{p.label}: {port} {message}')
         self.print('')
         # stats = instance.container_stats
         # if stats is not None:
@@ -146,6 +150,7 @@ class DockerEnvClient(Printer):
         #     self.print('')
         if not c:
             self.print(f'Not connected, \'connect {name}\' to connect tunnels.')
+        return instance
 
     def list(self):
 
