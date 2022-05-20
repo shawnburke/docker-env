@@ -3,6 +3,8 @@ from argparse import ArgumentError
 from contextlib import closing
 import socket
 from enum import Enum
+
+from .util import is_port_open
 from .repeating_timer import RepeatingTimer
 from .ssh import SSH
 from .printer import Printer
@@ -61,14 +63,9 @@ class Tunnel:
         for handler in self.handlers:
             handler(self.label, event)
 
-    @staticmethod
-    def is_port_open(port) -> bool:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-            return sock.connect_ex(("0.0.0.0", port)) == 0
 
-    def _check_port_open(self) -> bool:
-        return Tunnel.is_port_open(self.local_port)
 
+    
     def _report_status(self, _, status):
         if self.done:
             return
@@ -167,7 +164,7 @@ class Tunnel:
             return False
 
         port_status = self.port_status
-        result = self._check_port_open()
+        result = is_port_open(self.local_port)
 
         if result != port_status:
             self.port_status = result

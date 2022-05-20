@@ -3,10 +3,10 @@ VENV=venv
 PYTHON_BIN ?= $(VENV)/bin
 
 $(VENV)/pyvenv.cfg: 
-	. $(VENV)/bin/activate; python3 setup.py install;
+	python3 -m venv $(VENV)
 
 install: $(VENV)/pyvenv.cfg
-
+	. $(VENV)/bin/activate; python3 setup.py install;
 package:
 	. $(VENV)/bin/activate; if [ ! which twine ]; then pip3 install twine; fi
 	@PATH="$(PYTHON_BIN):$(PATH)" python3 setup.py sdist && twine check dist/*

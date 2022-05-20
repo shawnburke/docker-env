@@ -12,7 +12,7 @@ class TestUser(unittest.TestCase):
 
     def test_portfile_path(self):
         conn = lib.Connection(self.container, "the-host", "the-user", "the-name", None)
-        val = conn._get_portfile_path(1234)
+        val = conn._get_portfile_path(1234, "/tmp")
         self.assertEqual("/tmp/docker-env/the-user-the-name-1234.port", val)
 
 

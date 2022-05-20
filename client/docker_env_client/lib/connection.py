@@ -46,9 +46,13 @@ class Connection:
     def is_alive(self) -> bool:
         return self.tunnel and self.tunnel.is_connected()
 
-    def _get_portfile_path(self, remote_port) -> str:
+    def _get_portfile_path(self, remote_port, tmpdir=None) -> str:
+
+        if tmpdir is None:
+            tempfile.gettempdir()
+            
         # if it's zero, look on disk
-        tmpdir = path.join(tempfile.gettempdir(), "docker-env")
+        tmpdir = path.join(tmpdir, "docker-env")
         try:
             os.mkdir(tmpdir)
         except FileExistsError:
