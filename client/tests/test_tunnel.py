@@ -10,6 +10,7 @@ class TestTunnel(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.container = lib.Container({
           lib.Printer: lib.NullPrinter(),
+          lib.Config: lib.Config()
         })
 
     def test_events(self):
@@ -50,11 +51,7 @@ class TestTunnel(unittest.TestCase):
         port = tunnel._ensure_local_port()
         self.assertNotEqual(port, 0)
         self.assertEqual(port, tunnel.local_port)
-        self.assertFalse(lib.Tunnel.is_port_open(port))
-
-    
-
-
+        self.assertFalse(lib.util.is_port_open(port))
 
 if __name__ == '__main__':
     unittest.main()

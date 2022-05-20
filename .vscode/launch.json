@@ -8,17 +8,21 @@
             "name": "Client",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/client/main.py",
-            "args": ["localhost"],
-            "console": "integratedTerminal",
+            "module": "docker_env_client",
+            "cwd": "${workspaceFolder}/client",
+            "args": [
+                "localhost"
+            ],
             "justMyCode": true
         },
         {
             "name": "Test File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/client/venv/bin/python3",
-            "args": ["-m", "unittest", "${file}"],
+            "module": "unittest",
+            "args": [
+                "${file}"
+            ],
             "cwd": "${workspaceFolder}/client",
             "console": "integratedTerminal",
             "justMyCode": true

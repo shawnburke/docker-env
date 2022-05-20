@@ -1,8 +1,9 @@
 
 import sys
 import socket
+from os import path
 
-
+from .config import Config
 from .tunnel import Tunnel
 from .connection import Connection
 from .printer import Printer
@@ -31,6 +32,8 @@ class DockerEnvClient(Printer):
         self.api_tunnel = None
         self.api : 'API'
         self.api = container.create(API, self.container, self.host, self.port, self.user)
+        self.config: Config
+        self.config = container.get(Config)
         
 
     def print(self, msg: str, end='\n'):
@@ -64,7 +67,7 @@ class DockerEnvClient(Printer):
         try:
             # read whole file to a string
             if pubkey_path is None:
-                pubkey_path = "~/.ssh/id_rsa.pub"
+                pubkey_path = path.expanduser(path.join(self.config.ssh_dir, "id_rsa.pub"))
             with open(pubkey_path, "r") as pubkey_file:
                 pubkey = pubkey_file.read()
         except FileNotFoundError:
@@ -79,6 +82,7 @@ class DockerEnvClient(Printer):
             self.print(f'Created {instance.name}')
             self.print(f'\tSSH Port: {instance.ssh_port}')
             self.print(f'Run `connect {instance.name}` to start tunnels')
+            return instance
         elif response.status_code == 409:
             self.print(f'Instance {name} already exists')
         else:
@@ -179,7 +183,7 @@ class DockerEnvClient(Printer):
 
             if show_connected:
                 self.print("\n\t (*) Connected")
-            return
+            return instances
         self.print(f'Unexpected status {response.status_code}')
 
     def _is_used(self, port):
@@ -210,7 +214,7 @@ class DockerEnvClient(Printer):
         connection = self.connections.get(name)
         
         if connection is None:
-            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self.api.get_instance(self.user, name))
+            connection = self.container.create(Connection, self.container, host, self.user, name, lambda: self.api.get_instance(self.user, name))
             self.connections[name] = connection
 
         if not connection.start():
@@ -228,10 +232,11 @@ class DockerEnvClient(Printer):
             connection.stop()
             del self.connections[name]
             self.print(f'Disconnected from {name}')
-            return
+            return True
 
         if not quiet:
             self.print(f'No connection exists for {name}')
+        return False
 
     def forward(self, name, label, remote_port, local_port=None):
         connection = self.connections.get(name)
@@ -258,7 +263,7 @@ class DockerEnvClient(Printer):
         ssh_port = instance.ssh_port
 
         if not self._is_used(ssh_port):
-            self.print(f'SSH port is not open, run `docker-env connect {name}` first')
+            self.print(f'SSH port is not open, run `connect {name}` first')
             return
 
         ssh = self.container.create(SSH, self.container, "localhost", ssh_port, self.user).session()

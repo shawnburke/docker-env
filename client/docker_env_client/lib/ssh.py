@@ -4,10 +4,11 @@ import subprocess
 import shlex
 import sys
 import re
+from threading import local
 import time
 from .printer import Printer
 from .container import Container
-
+from .util import is_port_open
 
 class SSH:
     """
@@ -42,22 +43,36 @@ class SSH:
         """
             Abstracts an open SSH connection
         """
-        def __init__(self, command: str):
+        def __init__(self, command: str, local_port=None):
             self.command = command
             self.proc = None
             self.stderr = ""
             self.stdout = ""
+            self.local_port = local_port
 
         def is_alive(self):
             return self.proc is not None and self.proc.poll() is None
 
-        def run(self, wait:float = .5):
+        def run(self, wait:float = .5, tries=10):
             if self.proc is not None:
                 raise InvalidStateError()
 
             args = shlex.split(self.command)
             self.proc = subprocess.Popen(args, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
-            time.sleep(wait)
+
+            
+            for i in range(tries):
+                time.sleep(wait)
+                
+                if not self.local_port:
+                    return self.is_alive()
+
+                if not self.is_alive():
+                    return False
+                
+                if is_port_open(self.local_port):
+                    return True
+
 
         def ensure(self):
             if self.proc is None:
@@ -111,5 +126,5 @@ class SSH:
         """
        
         cmd = self.command(self.host, remote_port, local_port)
-        instance = SSH.SSHInstance(cmd)
+        instance = SSH.SSHInstance(cmd, local_port=local_port)
         return instance
