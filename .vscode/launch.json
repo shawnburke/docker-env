@@ -19,10 +19,8 @@
             "name": "Test File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/client/venv/bin/python3",
+            "module": "unittest",
             "args": [
-                "-m",
-                "unittest",
                 "${file}"
             ],
             "cwd": "${workspaceFolder}/client",

@@ -16,26 +16,26 @@ With a full image, you get support for VSCode Remote, JetBrains Remote Gateway, 
 To set up a server, you just need an instance that supports SSH and Docker.
 
 1. Clone this repo
-2. Run `standup` in the root.  This will build the docker containers, then build and start the server on port `3001` in your host.
+2. Run `make server-standup` in the root.  This will build the docker containers, then build and start the server on port `3001` in your host.
 
 
 ## Accessing with Client
 
 To create an environment, you need to be able to access the server via SSH.
 
-Let's imagine our  server is in our ssh config as `env-server` and you have access to it via `ssh env-server`.
+Let's imagine our  server is in our ssh config as `my-server` and you have access to it via `ssh my-server`.
 
 This is the server you ran the above steps on.
 
 Now, on a client.
 
 1. Clone this repo
-2. `cd client`
-3. Connect to the API: `./docker-env env-server`.  
-4. Create a developer enviornment: `env-server> create devbox`.  This will create a server for you to use:
+2. `cd client`, run `make install`
+3. Connect to the API: `./docker-env my-server`.  
+4. Create a developer enviornment: `my-server> create devbox`.  This will create a server for you to use:
 
 ```
-❯ env-server> create devbox
+❯ my-server> create devbox
 Created devbox
 	SSH Port: 35385
     Run `connect devbox` to start tunnels
@@ -58,10 +58,10 @@ To SSH to the instance, you can do so within the prompt or outside on the comman
 
 A SSH config has been created automatically, so from your command prompt, just run `ssh devbox` and you're set. This also works for tools like VSCode Remote SSH.
 
-At the docker-env prompt, run `env-server>  ssh devbox`.  This will give you an SSH prompt to the box:
+At the docker-env prompt, run `my-server>  ssh devbox`.  This will give you an SSH prompt to the box:
 
 ```
-env-server> ssh demo
+my-server> ssh demo
 ssh -A -p 35385 sburke@localhost
 Welcome to Ubuntu 20.04.4 LTS (GNU/Linux 5.4.0-1041-aws x86_64)
 

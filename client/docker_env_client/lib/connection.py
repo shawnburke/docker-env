@@ -94,7 +94,7 @@ class Connection:
 
     def _poll(self) -> bool:
             # check the instance
-        response = self.get_instance(self.name)
+        response = self.get_instance()
      
         if  response.status_code != 200:
             self.printer.print("Invalid instance name")

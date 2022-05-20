@@ -79,6 +79,7 @@ class DockerEnvClient(Printer):
             self.print(f'Created {instance.name}')
             self.print(f'\tSSH Port: {instance.ssh_port}')
             self.print(f'Run `connect {instance.name}` to start tunnels')
+            return instance
         elif response.status_code == 409:
             self.print(f'Instance {name} already exists')
         else:
@@ -179,7 +180,7 @@ class DockerEnvClient(Printer):
 
             if show_connected:
                 self.print("\n\t (*) Connected")
-            return
+            return instances
         self.print(f'Unexpected status {response.status_code}')
 
     def _is_used(self, port):
@@ -210,7 +211,7 @@ class DockerEnvClient(Printer):
         connection = self.connections.get(name)
         
         if connection is None:
-            connection = self.container.create(Connection, self.container, host, self.user, name, lambda name: self.api.get_instance(self.user, name))
+            connection = self.container.create(Connection, self.container, host, self.user, name, lambda: self.api.get_instance(self.user, name))
             self.connections[name] = connection
 
         if not connection.start():
@@ -258,7 +259,7 @@ class DockerEnvClient(Printer):
         ssh_port = instance.ssh_port
 
         if not self._is_used(ssh_port):
-            self.print(f'SSH port is not open, run `docker-env connect {name}` first')
+            self.print(f'SSH port is not open, run `connect {name}` first')
             return
 
         ssh = self.container.create(SSH, self.container, "localhost", ssh_port, self.user).session()
