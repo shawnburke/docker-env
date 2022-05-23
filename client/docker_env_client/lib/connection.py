@@ -2,10 +2,12 @@ import os
 import tempfile
 from os import path
 
+from .config import Config
 from .repeating_timer import RepeatingTimer
 from .tunnel import Tunnel, TunnelEvents
 from .printer import Printer
 from .container import Container
+from .config import Config
 
 class Connection:
     def __init__(self, container: 'Container', host, user, name, get_instance):
@@ -19,6 +21,10 @@ class Connection:
         self.tunnels = {}
         self.portmap = {}
         self.timer = None
+        self.config: Config
+        self.config = self.container.get(Config)
+            
+
 
     def start(self):
 
@@ -26,7 +32,7 @@ class Connection:
             return True
 
         if self.timer is None:
-            self.timer = RepeatingTimer(5, self._poll, f'Connection {self.name}')
+            self.timer = RepeatingTimer(self.config.check_interval_seconds, self._poll, f'Connection {self.name}')
 
         result = self._poll()
         if result:
@@ -49,7 +55,7 @@ class Connection:
     def _get_portfile_path(self, remote_port, tmpdir=None) -> str:
 
         if tmpdir is None:
-            tempfile.gettempdir()
+            tmpdir = tempfile.gettempdir()
             
         # if it's zero, look on disk
         tmpdir = path.join(tmpdir, "docker-env")
@@ -106,9 +112,16 @@ class Connection:
         if not self.is_alive():
             if self.tunnel:
                 self.tunnel.stop()
-                
 
-            self.tunnel = self.container.create(Tunnel, self.container, "SSH", self.host, ssh_port, ssh_port, f'Connected to SSH for {self.name}')
+            self.tunnel = self.container.create(
+                Tunnel, 
+                self.container, 
+                "SSH", 
+                self.host, 
+                remote_port=ssh_port,
+                local_port=ssh_port, 
+                message=f'Connected to SSH for {self.name}')
+    
             self.tunnel.add_handler(self._tunnel_status_changed)
             if not self.tunnel.start():
                 return False
@@ -187,14 +200,20 @@ class Connection:
         '''
         return ssh_config
 
+    def _ssh_path(self, file=None):
+        dir = os.path.expanduser(self.config.ssh_dir)
+        if file:
+            return os.path.join(dir, file)
+        return dir
+
 
     def _get_ssh_config_dir(self):
-        target = os.path.expanduser("~/.ssh/docker-env")
+        target = self._ssh_path("docker-env")
         os.makedirs(target, exist_ok=True)
         return target
 
     def _setup_ssh_config_include(self):
-        ssh_config_path = os.path.expanduser("~/.ssh/config")
+        ssh_config_path = self._ssh_path("config")
         include = "Include docker-env/*"
         ssh_config = ""
         if os.path.exists(ssh_config_path):

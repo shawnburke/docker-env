@@ -1,5 +1,13 @@
-from docker_env_client import lib
+from dis import get_instructions
+
 import unittest
+import mock
+
+from docker_env_client import lib
+from docker_env_client.lib.client import DockerEnvClient
+from docker_env_client.lib.api_client.types import Response
+from docker_env_client.lib.api_client.models import Instance, InstancePortsItem
+
 
 class TestUser(unittest.TestCase):
 
@@ -8,13 +16,62 @@ class TestUser(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.container = lib.Container({
           lib.Printer: lib.NullPrinter(),
+          lib.Config: lib.Config()
         })
 
+    def setUp(self) -> None:
+        self.conn = lib.Connection(self.container, "the-host", "the-user", "the-name", None)
+        return super().setUp()
+
     def test_portfile_path(self):
-        conn = lib.Connection(self.container, "the-host", "the-user", "the-name", None)
-        val = conn._get_portfile_path(1234, "/tmp")
+        val = self.conn._get_portfile_path(1234, "/tmp")
         self.assertEqual("/tmp/docker-env/the-user-the-name-1234.port", val)
 
+    def test_poll(self):
+
+        dead_tunnel = mock.Mock(name="dead_mock")
+        dead_tunnel.stop.return_value = True
+        self.conn.tunnels[9999] = dead_tunnel
+
+        get_instance_mock = mock.Mock(name="get_instance_mock")
+        get_instance_mock.return_value = Response['Instance'](
+            200, None, {}, 
+            Instance(
+                name="footest",
+                user="test-user", 
+                status="happy",
+                ssh_port="1022",
+                ports=[
+                    InstancePortsItem(label="Port A", message="PORT A on LOCAL_PORT", remote_port=1111),
+                ],
+            ))
+        self.conn.get_instance = get_instance_mock
+
+        ssh_tunnel_mock = mock.Mock(name="ssh_tunnel_mock")
+        ssh_tunnel_mock.start.return_value = True
+        ssh_tunnel_mock.add_handler.return_value = True
+        
+
+        port_mock = mock.Mock(name="port_mock")
+        port_mock.start.return_value = True
+        port_mock.local_port = 51111
+
+        def creator(t, c, label, host, **kwargs):
+            if label == "SSH":
+                return ssh_tunnel_mock
+            return port_mock
+
+        self.container.create = creator
+        
+        self.conn._poll()
+
+        ssh_tunnel_mock.start.assert_called_once()
+        ssh_tunnel_mock.add_handler.assert_called_once()
+        port_mock.start.assert_called_once()
+        dead_tunnel.stop.assert_called_once()
+
+
+        
 
 if __name__ == '__main__':
     unittest.main()

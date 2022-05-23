@@ -1,8 +1,9 @@
 
 import sys
 import socket
+from os import path
 
-
+from .config import Config
 from .tunnel import Tunnel
 from .connection import Connection
 from .printer import Printer
@@ -31,6 +32,8 @@ class DockerEnvClient(Printer):
         self.api_tunnel = None
         self.api : 'API'
         self.api = container.create(API, self.container, self.host, self.port, self.user)
+        self.config: Config
+        self.config = container.get(Config)
         
 
     def print(self, msg: str, end='\n'):
@@ -64,7 +67,7 @@ class DockerEnvClient(Printer):
         try:
             # read whole file to a string
             if pubkey_path is None:
-                pubkey_path = "~/.ssh/id_rsa.pub"
+                pubkey_path = path.expanduser(path.join(self.config.ssh_dir, "id_rsa.pub"))
             with open(pubkey_path, "r") as pubkey_file:
                 pubkey = pubkey_file.read()
         except FileNotFoundError:
@@ -229,10 +232,11 @@ class DockerEnvClient(Printer):
             connection.stop()
             del self.connections[name]
             self.print(f'Disconnected from {name}')
-            return
+            return True
 
         if not quiet:
             self.print(f'No connection exists for {name}')
+        return False
 
     def forward(self, name, label, remote_port, local_port=None):
         connection = self.connections.get(name)

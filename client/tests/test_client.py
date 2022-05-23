@@ -23,6 +23,7 @@ class TestClient(unittest.TestCase):
         container = lib.Container({
           lib.Printer: p,
           lib.API: m,
+          lib.Config: lib.Config()
         }, test_mode=True)
 
         c = DockerEnvClient(container, "test-usr", "1.2.3.4", 4321)
@@ -162,6 +163,26 @@ class TestClient(unittest.TestCase):
         self.container.register(lib.Connection, connection_mock)
         self.client.ssh("foo")
         self.assertOutput("Successfully connected")
+
+    def test_restart(self):
+
+        self._mock_get_instance()
+        self.api_mock.delete_instance.return_value = Response(
+            200, None, {}, None)
+
+        self.assertOutput("done")
+
+
+    def test_disconnect(self):
+        conn_mock = mock.Mock()
+        conn_mock.stop.return_value = True
+        self.client.connections["foo"] = conn_mock
+
+        result = self.client.disconnect("foo")
+        self.assertTrue(result)
+
+        
+       
 
 if __name__ == '__main__':
     unittest.main()

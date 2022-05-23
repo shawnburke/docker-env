@@ -12,6 +12,7 @@ container = lib.Container({
     lib.Tunnel: lib.Tunnel,
     lib.Connection: lib.Connection,
     lib.API: lib.API,
+    lib.Config: lib.Config(),
 })
 
 if __name__ == '__main__':
