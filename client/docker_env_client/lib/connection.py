@@ -1,6 +1,6 @@
 import os
 import tempfile
-from os import path
+from os import path, makedirs
 
 from .config import Config
 from .repeating_timer import RepeatingTimer
@@ -52,15 +52,16 @@ class Connection:
     def is_alive(self) -> bool:
         return self.tunnel and self.tunnel.is_connected()
 
-    def _get_portfile_path(self, remote_port, tmpdir=None) -> str:
+    def _get_portfile_path(self, remote_port) -> str:
 
-        if tmpdir is None:
+        tmpdir = self.config.temp_dir_root
+        if not tmpdir:
             tmpdir = tempfile.gettempdir()
             
         # if it's zero, look on disk
         tmpdir = path.join(tmpdir, "docker-env")
         try:
-            os.mkdir(tmpdir)
+            os.makedirs(tmpdir, exist_ok=True)
         except FileExistsError:
             # do nothing
             pass

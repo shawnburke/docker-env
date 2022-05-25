@@ -2,6 +2,9 @@ from dis import get_instructions
 
 import unittest
 import mock
+from os import path
+import tempfile
+import time
 
 from docker_env_client import lib
 from docker_env_client.lib.client import DockerEnvClient
@@ -14,9 +17,12 @@ class TestUser(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.config: lib.Config
+        self.config = lib.Config()
         self.container = lib.Container({
           lib.Printer: lib.NullPrinter(),
-          lib.Config: lib.Config()
+          lib.Config: self.config
         })
 
     def setUp(self) -> None:
@@ -24,8 +30,10 @@ class TestUser(unittest.TestCase):
         return super().setUp()
 
     def test_portfile_path(self):
-        val = self.conn._get_portfile_path(1234, "/tmp")
-        self.assertEqual("/tmp/docker-env/the-user-the-name-1234.port", val)
+        dir = path.join("/tmp/fake/my-temp-dir")
+        self.config.temp_dir_root = dir
+        val = self.conn._get_portfile_path(1234)
+        self.assertEqual(path.join(dir, "docker-env","the-user-the-name-1234.port"), val)
 
     def test_poll(self):
 

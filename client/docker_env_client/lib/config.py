@@ -8,3 +8,4 @@ from os import path
 class Config:
     ssh_dir: str = path.expanduser("~/.ssh")
     check_interval_seconds: int = 5
+    temp_dir_root: str = ""
