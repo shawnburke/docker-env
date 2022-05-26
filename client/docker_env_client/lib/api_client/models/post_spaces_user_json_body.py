@@ -13,7 +13,7 @@ class PostSpacesUserJsonBody:
     Attributes:
         user (Union[Unset, str]):
         name (Union[Unset, str]): Instance Name
-        image (Union[Unset, str]):
+        image (Union[Unset, str]): The docker image to use
         password (Union[Unset, str]):
         pubkey (Union[Unset, str]):
     """

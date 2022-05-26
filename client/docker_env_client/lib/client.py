@@ -85,6 +85,8 @@ class DockerEnvClient(Printer):
             return instance
         elif response.status_code == 409:
             self.print(f'Instance {name} already exists')
+        elif response.status_code == 400:
+            self.print(f'Can not create instance:{response.parsed.error}')
         else:
             self.print(f'Unexpected response {response.status_code}')
 

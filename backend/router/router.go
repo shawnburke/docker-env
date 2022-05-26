@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	docker "github.com/docker/docker/client"
 	chi "github.com/go-chi/chi/v5"
 	openapi_server "github.com/shawnburke/docker-env/backend/.gen/server"
 	"github.com/shawnburke/docker-env/backend/spaces"
@@ -118,10 +119,20 @@ func (r *router) PostSpacesUser(w http.ResponseWriter, req *http.Request, user s
 		return
 	}
 
+	if docker.IsErrNotFound(err) {
+		w.WriteHeader(400)
+		w.Write([]byte(fmt.Sprintf(`{"error":"Specified image tag %q is not found"}`, csr.Image)))
+		return
+	}
+
 	if err != nil {
 		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("Error creating: %v\n", err)))
-		w.Write([]byte(output))
+		res := map[string]string{
+			"error":  fmt.Sprintf("Error creating: %v\n", err),
+			"detail": output,
+		}
+		raw, _ := json.Marshal(res)
+		w.Write(raw)
 		return
 	}
 

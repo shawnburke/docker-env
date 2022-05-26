@@ -5,6 +5,7 @@ import httpx
 from ...client import Client
 from ...models.instance import Instance
 from ...models.post_spaces_user_json_body import PostSpacesUserJsonBody
+from ...models.post_spaces_user_response_400 import PostSpacesUserResponse400
 from ...types import Response
 
 
@@ -31,18 +32,22 @@ def _get_kwargs(
     }
 
 
-def _parse_response(*, response: httpx.Response) -> Optional[Union[Any, Instance]]:
+def _parse_response(*, response: httpx.Response) -> Optional[Union[Any, Instance, PostSpacesUserResponse400]]:
     if response.status_code == 201:
         response_201 = Instance.from_dict(response.json())
 
         return response_201
     if response.status_code == 400:
-        response_400 = cast(Any, None)
+        response_400 = PostSpacesUserResponse400.from_dict(response.json())
+
         return response_400
+    if response.status_code == 409:
+        response_409 = cast(Any, None)
+        return response_409
     return None
 
 
-def _build_response(*, response: httpx.Response) -> Response[Union[Any, Instance]]:
+def _build_response(*, response: httpx.Response) -> Response[Union[Any, Instance, PostSpacesUserResponse400]]:
     return Response(
         status_code=response.status_code,
         content=response.content,
@@ -56,7 +61,7 @@ def sync_detailed(
     *,
     client: Client,
     json_body: PostSpacesUserJsonBody,
-) -> Response[Union[Any, Instance]]:
+) -> Response[Union[Any, Instance, PostSpacesUserResponse400]]:
     """Create a new instance
 
     Args:
@@ -64,7 +69,7 @@ def sync_detailed(
         json_body (PostSpacesUserJsonBody):
 
     Returns:
-        Response[Union[Any, Instance]]
+        Response[Union[Any, Instance, PostSpacesUserResponse400]]
     """
 
     kwargs = _get_kwargs(
@@ -86,7 +91,7 @@ def sync(
     *,
     client: Client,
     json_body: PostSpacesUserJsonBody,
-) -> Optional[Union[Any, Instance]]:
+) -> Optional[Union[Any, Instance, PostSpacesUserResponse400]]:
     """Create a new instance
 
     Args:
@@ -94,7 +99,7 @@ def sync(
         json_body (PostSpacesUserJsonBody):
 
     Returns:
-        Response[Union[Any, Instance]]
+        Response[Union[Any, Instance, PostSpacesUserResponse400]]
     """
 
     return sync_detailed(
@@ -109,7 +114,7 @@ async def asyncio_detailed(
     *,
     client: Client,
     json_body: PostSpacesUserJsonBody,
-) -> Response[Union[Any, Instance]]:
+) -> Response[Union[Any, Instance, PostSpacesUserResponse400]]:
     """Create a new instance
 
     Args:
@@ -117,7 +122,7 @@ async def asyncio_detailed(
         json_body (PostSpacesUserJsonBody):
 
     Returns:
-        Response[Union[Any, Instance]]
+        Response[Union[Any, Instance, PostSpacesUserResponse400]]
     """
 
     kwargs = _get_kwargs(
@@ -137,7 +142,7 @@ async def asyncio(
     *,
     client: Client,
     json_body: PostSpacesUserJsonBody,
-) -> Optional[Union[Any, Instance]]:
+) -> Optional[Union[Any, Instance, PostSpacesUserResponse400]]:
     """Create a new instance
 
     Args:
@@ -145,7 +150,7 @@ async def asyncio(
         json_body (PostSpacesUserJsonBody):
 
     Returns:
-        Response[Union[Any, Instance]]
+        Response[Union[Any, Instance, PostSpacesUserResponse400]]
     """
 
     return (

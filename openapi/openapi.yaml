@@ -62,6 +62,7 @@ paths:
                   description: "Instance Name"
                 image:
                   type: string
+                  description: "The docker image to use"
                 password:
                   type: string
                 pubkey:
@@ -75,7 +76,17 @@ paths:
                 $ref: '#/components/schemas/Instance'
 
         '400':
-          description: "Error"
+          description: "Bad request, likely due to images not being built"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '409':
+          description: "Instance of that name already exists"
+
   /spaces/{user}/{name}:
       get:
           description: "Get instance detail"

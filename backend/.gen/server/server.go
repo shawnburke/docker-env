@@ -28,6 +28,7 @@ type Instance struct {
 
 // PostSpacesUserJSONBody defines parameters for PostSpacesUser.
 type PostSpacesUserJSONBody struct {
+	// The docker image to use
 	Image *string `json:"image,omitempty"`
 
 	// Instance Name

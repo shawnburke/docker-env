@@ -1,16 +1,15 @@
 
+all: client server
 
 install:
 	$(MAKE) -c backend install
 	$(MAKE) -c client install
 
-
-backend/docker-env-server: openapi
-	cd backend; go build -o docker-env-server .
-
-openapi:
-	$(MAKE) -C backend openapi
+client: 
 	$(MAKE) -C client openapi
+
+server:
+	$(MAKE) -C backend server	
 
 test: 
 	@echo "Server tests"
@@ -23,3 +22,5 @@ images:
 
 standup: images
 	$(MAKE) -C backend start-docker
+
+.PHONY: openapi all
