@@ -25,6 +25,11 @@ test:
 start: docker-env-server
 	./docker-env-server
 
+
+TAG ?= docker-env-server:local
+docker-build:
+	cd .. && docker build -t $(TAG) -f backend/Dockerfile .
+
 start-docker: openapi
 	./start -r -d
 	echo "Server is now running as daemon, tailing logs... (you can quit this)"

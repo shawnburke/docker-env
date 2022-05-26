@@ -6,13 +6,15 @@ RUN apk add --no-cache  --update docker-cli python3  python3-dev libffi-dev open
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 
 RUN go mod download
 
-COPY . .
+COPY backend .
+COPY openapi /openapi
 
-RUN go build -o /app/server .
+RUN make docker-env-server
+RUN mv docker-env-server /app/server
 
 RUN mkdir -p /data
 ENV PORT 3001
