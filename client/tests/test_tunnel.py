@@ -10,6 +10,7 @@ class TestTunnel(unittest.TestCase):
         super().__init__(*args, **kwargs)
         self.container = lib.Container({
           lib.Printer: lib.NullPrinter(),
+          lib.Config: lib.Config()
         })
 
     def test_events(self):

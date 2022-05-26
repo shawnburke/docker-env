@@ -4,6 +4,7 @@ from contextlib import closing
 import socket
 from enum import Enum
 
+from .config import Config
 from .util import is_port_open
 from .repeating_timer import RepeatingTimer
 from .ssh import SSH
@@ -50,6 +51,10 @@ class Tunnel:
         self.done = False
         self.expect_open = expect_open
 
+        self.config: Config
+        self.config = container.get(Config)
+
+
     def add_handler(self, handler):
         """
             Handler is (label, Event)
@@ -90,7 +95,7 @@ class Tunnel:
         result = self._poll()
 
         if self.timer is None:
-            self.timer = RepeatingTimer(5, self._poll, f'Tunnel {self.label}')
+            self.timer = RepeatingTimer(self.config.check_interval_seconds, self._poll, f'Tunnel {self.label}')
             self.timer.start()
 
         return result

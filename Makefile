@@ -21,5 +21,5 @@ test:
 images:
 	cd workspace-images && ./build-images
 
-server-standup:
+standup: images
 	$(MAKE) -C backend start-docker
