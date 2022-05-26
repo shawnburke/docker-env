@@ -16,5 +16,5 @@ setup(
    author_email='shawn@shawnburke.com',
    license="MIT",
    packages=['docker_env_client'], 
-   install_requires=['httpx', 'attrs'],
+   install_requires=['httpx', 'attrs', 'mock'],
 )

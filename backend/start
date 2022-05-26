@@ -21,7 +21,7 @@ then
     rebuild=1
 fi
 
-[[ -n "$rebuild" ]] && docker build -t $tag .
+[[ -n "$rebuild" ]] && make -e "TAG=$tag" docker-build
 
 
 container_name=${@:$OPTIND:1}
