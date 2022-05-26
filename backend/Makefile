@@ -3,7 +3,9 @@ SERVER_STUB_PATH=.gen/server
 GOPATH ?= ~/go
 
 $(GOPATH)/bin/oapi-codegen:
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.10.1
+	
+	ls -al /usr/bin/echo 
+	/usr/local/go/bin/go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.10.1
 
 
 install: openapi
@@ -17,6 +19,8 @@ openapi: $(SERVER_STUB_FILE) ../openapi/openapi.yaml $(GOPATH)/bin/oapi-codegen
 server: docker-env-server
 
 docker-env-server: openapi
+	@echo "GOPATH=$(GOPATH)"
+	@echo "GOBIN=$(GOBIN)"
 	go build -o docker-env-server .
 
 test:
@@ -30,7 +34,7 @@ TAG ?= docker-env-server:local
 docker-build:
 	cd .. && docker build -t $(TAG) -f backend/Dockerfile .
 
-start-docker: openapi
+start-docker: docker-build
 	./start -r -d
 	echo "Server is now running as daemon, tailing logs... (you can quit this)"
 	docker logs -f docker-env-server
