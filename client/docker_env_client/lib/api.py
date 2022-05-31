@@ -4,7 +4,7 @@ from .printer import Printer
 from .container import Container
 
 from .api_client import Client
-from .api_client.api.default import get_spaces_user, get_spaces_user_name, get_health, post_spaces_user, post_spaces_user_name_restart, delete_spaces_user_name
+from .api_client.api.default import get_spaces_user, get_spaces_user_name, get_health, post_spaces_user, post_spaces_user_name_restart, delete_spaces_user_name, post_spaces_user_name_start, post_spaces_user_name_stop
 from .api_client.models import Instance, GetHealthResponse200, PostSpacesUserJsonBody, PostSpacesUserResponse400
 from .api_client.types import Response
 
@@ -39,4 +39,12 @@ class API:
 
     def delete_instance(self, user, name) -> Response:
         return delete_spaces_user_name.sync_detailed(user=user,name=name, client=self.api_client)
+
+    def start_instance(self, user, name) -> Response:
+        return post_spaces_user_name_start.sync_detailed(user=user, name=name, client=self.api_client)
+
+    def stop_instance(self, user, name) -> Response:
+        return post_spaces_user_name_stop.sync_detailed(user=user, name=name, client=self.api_client)
+
+
 

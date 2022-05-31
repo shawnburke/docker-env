@@ -74,6 +74,8 @@ class RootCommand(Command):
             CreateCommand(),
             InfoCommand(),
             RestartCommand(),
+            StartCommand(),
+            StopCommand(),
             ConnectCommand(),
             DisconnectCommand(),
             SSHCommand(),
@@ -166,7 +168,25 @@ class RestartCommand(Command):
 
     def parser(self):
         parser = argparse.ArgumentParser(prog=self.name)
-        parser.add_argument("instance", help='Instance name restart')
+        parser.add_argument("instance", help='Instance name to restart')
+        return parser
+
+class StopCommand(Command):
+    def __init__(self):
+        super().__init__( "stop")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance name to stop')
+        return parser
+
+class StartCommand(Command):
+    def __init__(self):
+        super().__init__( "start")
+
+    def parser(self):
+        parser = argparse.ArgumentParser(prog=self.name)
+        parser.add_argument("instance", help='Instance name to start')
         return parser
 
 class ConnectCommand(Command):

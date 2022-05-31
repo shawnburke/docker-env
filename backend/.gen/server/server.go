@@ -61,6 +61,12 @@ type ServerInterface interface {
 
 	// (POST /spaces/{user}/{name}/restart)
 	PostSpacesUserNameRestart(w http.ResponseWriter, r *http.Request, user string, name string)
+
+	// (POST /spaces/{user}/{name}/start)
+	PostSpacesUserNameStart(w http.ResponseWriter, r *http.Request, user string, name string)
+
+	// (POST /spaces/{user}/{name}/stop)
+	PostSpacesUserNameStop(w http.ResponseWriter, r *http.Request, user string, name string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -244,6 +250,76 @@ func (siw *ServerInterfaceWrapper) PostSpacesUserNameRestart(w http.ResponseWrit
 	handler(w, r.WithContext(ctx))
 }
 
+// PostSpacesUserNameStart operation middleware
+func (siw *ServerInterfaceWrapper) PostSpacesUserNameStart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "user" -------------
+	var user string
+
+	err = runtime.BindStyledParameter("simple", false, "user", chi.URLParam(r, "user"), &user)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameter("simple", false, "name", chi.URLParam(r, "name"), &name)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSpacesUserNameStart(w, r, user, name)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// PostSpacesUserNameStop operation middleware
+func (siw *ServerInterfaceWrapper) PostSpacesUserNameStop(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "user" -------------
+	var user string
+
+	err = runtime.BindStyledParameter("simple", false, "user", chi.URLParam(r, "user"), &user)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameter("simple", false, "name", chi.URLParam(r, "name"), &name)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSpacesUserNameStop(w, r, user, name)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -374,6 +450,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/spaces/{user}/{name}/restart", wrapper.PostSpacesUserNameRestart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/spaces/{user}/{name}/start", wrapper.PostSpacesUserNameStart)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/spaces/{user}/{name}/stop", wrapper.PostSpacesUserNameStop)
 	})
 
 	return r

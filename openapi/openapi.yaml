@@ -144,6 +144,48 @@ paths:
             description: "Instance restarted"
           '404':
             description: "Not found"
+  /spaces/{user}/{name}/start:
+    post:
+      description: Start a stopped instance
+      parameters:
+          - name: user
+            in: path
+            required: true
+            schema:
+              type: string
+          - name: name
+            in: path
+            required: true
+            schema:
+              type: string
+      responses:
+          '200':
+            description: "Instance started"
+          '400':
+            description: "Invalid state"
+          '404':
+            description: "Not found"
+  /spaces/{user}/{name}/stop:
+    post:
+      description: Stop a running instance
+      parameters:
+          - name: user
+            in: path
+            required: true
+            schema:
+              type: string
+          - name: name
+            in: path
+            required: true
+            schema:
+              type: string
+      responses:
+          '200':
+            description: "Instance stopped"
+          '400':
+            description: "Invalid state"
+          '404':
+            description: "Not found"
 
                     
 

@@ -199,3 +199,33 @@ func (r *router) PostSpacesUserNameRestart(w http.ResponseWriter, req *http.Requ
 		w.Write([]byte(err.Error()))
 	}
 }
+
+// (POST /spaces/{user}/{name}/start)
+func (r *router) PostSpacesUserNameStart(w http.ResponseWriter, req *http.Request, user string, name string) {
+	err := r.manager.Start(user, name)
+	if os.IsNotExist(err) {
+		w.WriteHeader(404)
+		return
+	}
+}
+
+// (POST /spaces/{user}/{name}/stop)
+func (r *router) PostSpacesUserNameStop(w http.ResponseWriter, req *http.Request, user string, name string) {
+	err := r.manager.Stop(user, name)
+
+	if err == nil {
+		return
+	}
+	if os.IsNotExist(err) {
+		w.WriteHeader(404)
+		return
+	}
+
+	if err == os.ErrInvalid {
+		w.WriteHeader(400)
+		return
+	}
+
+	w.WriteHeader(500)
+	w.Write([]byte(err.Error()))
+}

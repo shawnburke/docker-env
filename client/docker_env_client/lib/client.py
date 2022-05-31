@@ -101,6 +101,29 @@ class DockerEnvClient(Printer):
         else:
             self.print(f'Unexpected response {response.status_code}')
 
+    def stop_instance(self, name):
+        response = self.api.stop_instance(self.user, name)
+        if response.status_code == 200:   
+            self.disconnect(name, quiet=True)
+            self.print("Successfully stopped instance")
+        elif response.status_code == 400:
+            self.print(f'Instance "{name}" must be in "running" state')
+        elif response.status_code == 404:
+            self.print(f'Unknown instance "{name}"')
+        else:
+            self.print(f'Unexpected response {response.status_code}')
+
+    def start_instance(self, name):
+        response = self.api.start_instance(self.user, name)
+        if response.status_code == 200:
+            self.print("Successfully started instance")
+        elif response.status_code == 400:
+            self.print(f'Instance "{name}" must be in "stopped" or "exited" state')
+        elif response.status_code == 404:
+            self.print(f'Unknown instance "{name}"')
+        else:
+            self.print(f'Unexpected response {response.status_code}')
+
     def _get_instance(self, name):
         response = self.api.get_instance(self.user, name)
         

@@ -91,6 +91,7 @@ type Manager interface {
 	Create(space NewSpace) (*Instance, string, error)
 	List(user string) ([]Instance, error)
 	Get(user, name string, stats bool) (Instance, error)
+	Start(user, name string) error
 	Stop(user, name string) error
 	Kill(user, name string) error
 	Restart(user, name string) error
@@ -227,13 +228,10 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 
 	key := fmt.Sprintf("%s/%s", space.User, space.Name)
 
-	dir := path.Join(dcm.userRoot(), key)
+	dir, exists := dcm.getDCDir(space.User, space.Name)
 
-	// todo check if running
-	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-
+	if exists {
 		instance, err := dcm.Get(space.User, space.Name, false)
-
 		if err == nil && instance.Name == space.Name {
 			return &instance, "", os.ErrExist
 		}
@@ -356,6 +354,23 @@ func (dcm *dockerComposeManager) getOpenPorts(payload string) []instancePort {
 	return iPorts
 }
 
+func (dcm *dockerComposeManager) checkDCFile(user, name string) bool {
+	// make sure there is a dc file in there
+	dcDir, _ := dcm.getDCDir(user, name)
+	stat, err := os.Stat(path.Join(dcDir, dockerComposeYml))
+	return err == nil && !stat.IsDir()
+}
+
+func (dcm *dockerComposeManager) getDCDir(user, name string) (string, bool) {
+	dir := path.Join(dcm.userRoot(), user, name)
+
+	exists := false
+	if s, err := os.Stat(dir); err == nil && s != nil && s.IsDir() {
+		exists = true
+	}
+	return dir, exists
+}
+
 func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, error) {
 
 	i := &Instance{
@@ -363,10 +378,7 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 		Name: name,
 	}
 
-	// make sure there is a dc file in there
-	stat, err := os.Stat(path.Join(dcm.userRoot(), user, name, dockerComposeYml))
-
-	if err != nil || stat.IsDir() {
+	if !dcm.checkDCFile(user, name) {
 		return Instance{}, os.ErrNotExist
 	}
 
@@ -382,8 +394,12 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 		return Instance{}, err
 	}
 
-	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 	i.Status = j.State.Status
+	if j.State.Status != "running" {
+		return *i, nil
+	}
+
+	i.SshPort = getPort(22, j.NetworkSettings.Ports)
 
 	// check open ports
 
@@ -474,12 +490,67 @@ func getPort(port int, pm nat.PortMap) int {
 	return 0
 }
 
-func (dcm *dockerComposeManager) getInstanceDir(user, name string) string {
-	return path.Join(dcm.userRoot(), user, name)
+func (dcm *dockerComposeManager) Stop(user string, name string) error {
+	dir, exists := dcm.getDCDir(user, name)
+	if !exists {
+		return os.ErrNotExist
+	}
+
+	i, err := dcm.Get(user, name, false)
+
+	if err != nil {
+		return err
+	}
+
+	switch i.Status {
+	case "running":
+		break
+	case "stopped", "exited":
+		return nil
+	default:
+		return os.ErrInvalid
+	}
+
+	output, err := dcm.dockerCompose(dir, "stop")
+
+	if err != nil {
+		fmt.Println("Failed to up:\n", output)
+		return err
+	}
+
+	return nil
 }
 
-func (dcm *dockerComposeManager) Stop(user string, name string) error {
-	panic("not implemented") // TODO: Implement
+func (dcm *dockerComposeManager) Start(user string, name string) error {
+	dir, exists := dcm.getDCDir(user, name)
+	if !exists {
+		return os.ErrNotExist
+	}
+
+	i, err := dcm.Get(user, name, false)
+
+	if err != nil {
+		return err
+	}
+
+	switch i.Status {
+	case "running":
+		return nil
+	case "stopped", "exited":
+		break
+	default:
+		return os.ErrInvalid
+	}
+
+	output, err := dcm.dockerCompose(dir, "up", "-d")
+
+	if err != nil {
+		fmt.Println("Failed to up:\n", output)
+		return err
+	}
+
+	return nil
+
 }
 
 func (dcm *dockerComposeManager) Restart(user string, name string) error {
@@ -494,7 +565,7 @@ func (dcm *dockerComposeManager) Restart(user string, name string) error {
 		return fmt.Errorf("instance %q is not running, so cannot restart", name)
 	}
 
-	dir := dcm.getInstanceDir(user, name)
+	dir, _ := dcm.getDCDir(user, name)
 
 	output, err := dcm.dockerCompose(dir, "down")
 
@@ -519,17 +590,13 @@ func (dcm *dockerComposeManager) Kill(user string, name string) error {
 		return err
 	}
 
-	dir := path.Join(dcm.userRoot(), i.User, i.Name)
+	dir, _ := dcm.getDCDir(i.User, i.Name)
 
-	output := &bytes.Buffer{}
-
-	cmd := exec.Command("docker-compose", "down")
-	cmd.Dir = dir
-	cmd.Stdout = output
-	cmd.Stderr = output
-	err = cmd.Run()
+	output, err := dcm.dockerCompose(dir, "down")
 
 	if err != nil {
+		fmt.Println("Failed to destroy")
+		fmt.Println(output)
 		return err
 	}
 
