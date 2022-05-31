@@ -53,7 +53,7 @@ class Connection:
     def _get_portfile_path(self, remote_port) -> str:
 
         tmpdir = self.config.temp_dir_root
-        if tmpdir is None:
+        if not tmpdir:
            tmpdir = tempfile.gettempdir()
             
         # if it's zero, look on disk

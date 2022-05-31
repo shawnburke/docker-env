@@ -1,6 +1,8 @@
 # NOTE THIS MUST BE RUN FROM THE REPO ROOT CONTEXT (cd .. && docker-build -t tag -f backend/Dockerfile .)
 
-FROM golang:1.18.0-alpine3.15
+
+# To build on docker < 20.10 you MUST use alpine 3.13 or earlier.  
+FROM golang:1.17.3-alpine3.13
 
 RUN apk update
 RUN apk add --no-cache  --update docker-cli python3  python3-dev libffi-dev openssl-dev gcc libc-dev make docker-compose git

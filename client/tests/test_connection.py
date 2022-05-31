@@ -33,6 +33,24 @@ class TestUser(unittest.TestCase):
         val = self.conn._get_portfile_path(1234)
         self.assertEqual(path.join(self.config.temp_dir_root, "docker-env","the-user-the-name-1234.port"), val)
 
+    def test_portfile_roundtrip(self):
+        remote_port = time.time_ns() % 100000
+        null_local_port = self.conn._get_local_port(remote_port)
+        self.assertEqual(0, null_local_port)
+
+        local_port = time.time_ns() % 1000
+
+        self.conn._save_local_port(remote_port, local_port)
+
+        cached_local_port = self.conn._get_local_port(remote_port)
+        self.assertEqual(local_port, cached_local_port)
+
+        # wipe out the cache
+        self.conn.portmap = {}
+        read_local_port = self.conn._get_local_port(remote_port)
+        self.assertEqual(local_port, read_local_port)
+
+
     def test_poll(self):
 
         dead_tunnel = mock.Mock(name="dead_mock")
