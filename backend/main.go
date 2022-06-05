@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/shawnburke/docker-env/backend/router"
 	"github.com/shawnburke/docker-env/backend/spaces"
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
@@ -43,9 +45,19 @@ func main() {
 		DnsNameservers: strings.Split(os.Getenv("DNS_NAMESERVERS"), ","),
 	}
 
+	raw, err := yaml.Marshal(params)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Printf("Config:\n%v\n", string(raw))
+
 	manager := spaces.New(params)
 	mux := router.New(manager)
 	fmt.Println("Starting server on port: ", port)
 	fmt.Println("Using dir: ", dir)
-	http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), mux)
+	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), mux)
+	if err != nil {
+		log.Printf("Error starting HTTP server: %v", err)
+	}
 }

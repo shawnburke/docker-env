@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -216,25 +217,15 @@ func (dcm *dockerComposeManager) dockerCompose(dir string, args ...string) (stri
 	return output.String(), err
 }
 
-func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, error) {
+const spaceArgsFile = "args.json"
 
+func (dcm *dockerComposeManager) createArgsFile(dir string, space NewSpace) (NewSpace, error) {
 	if space.Name == "" {
 		space.Name = dcm.pickName(space.User)
 	}
 
 	if space.Name == "" {
-		return nil, "Failed to pick name", fmt.Errorf("No name was provided, all default names are in use.")
-	}
-
-	key := fmt.Sprintf("%s/%s", space.User, space.Name)
-
-	dir, exists := dcm.getDCDir(space.User, space.Name)
-
-	if exists {
-		instance, err := dcm.Get(space.User, space.Name, false)
-		if err == nil && instance.Name == space.Name {
-			return &instance, "", os.ErrExist
-		}
+		return space, errors.New("No name was provided, all default names are in use.")
 	}
 
 	space.UserRoot = dcm.userRoot()
@@ -248,20 +239,58 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	// make sure the image exists
 	cli, err := dcm.client()
 	if err != nil {
-		return nil, err.Error(), fmt.Errorf("Error getting client: %v", err)
+		return space, fmt.Errorf("Error getting client: %v", err)
 	}
 
 	_, _, err = cli.ImageInspectWithRaw(context.Background(), space.Image)
 
 	if err != nil {
-		return nil, "Can not find image " + space.Image, err
+		return space, fmt.Errorf("can not find image %q (%v)", space.Image, err)
 	}
 
-	space.params = dcm.params
+	// save the args to the target dir
+	raw, err := json.MarshalIndent(space, "", "  ")
 
-	err = createSpaceFiles(dir, space)
 	if err != nil {
-		return nil, err.Error(), err
+		return space, err
+	}
+
+	err = ioutil.WriteFile(path.Join(dir, spaceArgsFile), raw, 0644)
+
+	if err != nil {
+		return space, err
+	}
+
+	return space, nil
+}
+
+func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, error) {
+
+	key := fmt.Sprintf("%s/%s", space.User, space.Name)
+
+	dir, exists := dcm.getDCDir(space.User, space.Name)
+
+	if exists {
+		instance, err := dcm.Get(space.User, space.Name, false)
+		if err == nil && instance.Name == space.Name {
+			return &instance, "", os.ErrExist
+		}
+	}
+
+	// create the dir
+	err := os.MkdirAll(dir, os.ModeDir|os.ModePerm)
+	if err != nil {
+		return nil, "can't create dir", err
+	}
+
+	// create an args file that we save so we can always regen
+	// the DC file
+	space, err = dcm.createArgsFile(dir, space)
+
+	err = dcm.generateDC(space.User, space.Name)
+
+	if err != nil {
+		return nil, "failed to generate docker-compose file", err
 	}
 
 	log.Printf("Starting space")
@@ -282,6 +311,32 @@ func (dcm *dockerComposeManager) Create(space NewSpace) (*Instance, string, erro
 	}
 
 	return &i, output, nil
+}
+
+func (dcm *dockerComposeManager) generateDC(user, name string) error {
+	dir, _ := dcm.getDCDir(user, name)
+	argsFile := path.Join(dir, spaceArgsFile)
+
+	raw, err := ioutil.ReadFile(argsFile)
+	if err != nil {
+		return fmt.Errorf("can't find arg file at %q (%v)", argsFile, err)
+	}
+
+	space := NewSpace{}
+
+	err = json.Unmarshal(raw, &space)
+	if err != nil {
+		return fmt.Errorf("can't unmarshal args file: %v", err)
+	}
+
+	space.params = dcm.params
+	err = createSpaceFiles(dir, space)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Generated docker-compose file for %s-%s", user, name)
+	return nil
 }
 
 type ContainerStats struct {
@@ -390,7 +445,13 @@ func (dcm *dockerComposeManager) Get(user, name string, stats bool) (Instance, e
 
 	j, err := cli.ContainerInspect(context.Background(), key)
 	if err != nil {
+
+		if client.IsErrNotFound(err) {
+			return Instance{}, os.ErrNotExist
+		}
+
 		fmt.Fprintf(os.Stderr, "Error inspecting %q: %v", key, err)
+
 		return Instance{}, err
 	}
 
@@ -529,17 +590,24 @@ func (dcm *dockerComposeManager) Start(user string, name string) error {
 
 	i, err := dcm.Get(user, name, false)
 
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
 	switch i.Status {
 	case "running":
 		return nil
-	case "stopped", "exited":
+	case "stopped", "exited", "":
 		break
 	default:
 		return os.ErrInvalid
+	}
+
+	// we always regenerate the DC file to pick up any new
+	// DNS or other settings
+	err = dcm.generateDC(user, name)
+	if err != nil {
+		return err
 	}
 
 	output, err := dcm.dockerCompose(dir, "up", "-d")
@@ -573,14 +641,7 @@ func (dcm *dockerComposeManager) Restart(user string, name string) error {
 		return fmt.Errorf("Failed to stop running instance: %v, output=\n%s\n", err, output)
 	}
 
-	output, err = dcm.dockerCompose(dir, "up", "-d")
-
-	if err != nil {
-		return fmt.Errorf("Failed to restart stopped instance: %v, output=\n%s\n", err, output)
-	}
-
-	return nil
-
+	return dcm.Start(user, name)
 }
 
 func (dcm *dockerComposeManager) Kill(user string, name string) error {
@@ -627,12 +688,6 @@ func createSpaceFiles(dir string, space NewSpace) error {
 		return err
 	}
 	space.ProjectorPort = port
-
-	// create the dir
-	err = os.MkdirAll(dir, os.ModeDir|os.ModePerm)
-	if err != nil {
-		return err
-	}
 
 	b, err := createDockerCompose(space)
 	if err != nil {
