@@ -32,12 +32,10 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
+            "cwd": "${workspaceFolder}/backend",
             "program": "${workspaceFolder}/backend",
             "env": {
-                "DIR": "${workspaceFolder}/backend",
-                "PORT": "3001",
                 "DNS_NAMESERVERS": "1.1.1.1,8.8.8.8",
-                "DEFAULT_IMAGE": "docker-env-base:local"
             }
         }
     ]

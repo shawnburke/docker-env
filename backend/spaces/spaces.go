@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/phayes/freeport"
+	"github.com/shawnburke/docker-env/backend/config"
 )
 
 type NewSpace struct {
@@ -38,7 +39,7 @@ type NewSpace struct {
 	Root          string
 	UserRoot      string
 
-	params Params
+	params config.Config
 }
 
 func (ns NewSpace) DockerArgs() string {
@@ -61,7 +62,7 @@ func (ns NewSpace) DockerArgs() string {
 	return strings.Join(args, " ")
 }
 
-func (ns NewSpace) Params() Params {
+func (ns NewSpace) Params() config.Config {
 	return ns.params
 }
 
@@ -98,7 +99,6 @@ type Manager interface {
 	Restart(user, name string) error
 }
 
-const DefaultImageName = "docker-env-base:local"
 const dockerComposeYml = "docker-compose.yml"
 
 var spaceNames = []string{
@@ -111,44 +111,14 @@ var spaceNames = []string{
 	"count",
 }
 
-type Params struct {
-	DefaultImage   string
-	DnsNameservers []string
-	DnsSearch      string
-	CopyHostDns    bool
-	Dir            string
-}
-
-func (p Params) Sanitize() Params {
-	cutset := "\"' \t"
-	p.Dir = strings.Trim(p.Dir, cutset)
-
-	p.DefaultImage = strings.Trim(p.DefaultImage, cutset)
-	p.DnsSearch = strings.Trim(p.DnsSearch, cutset)
-	for i := len(p.DnsNameservers) - 1; i >= 0; i-- {
-		p.DnsNameservers[i] = strings.Trim(p.DnsNameservers[i], cutset)
-		if p.DnsNameservers[i] == "" {
-			p.DnsNameservers = p.DnsNameservers[0:i]
-		}
-	}
-	return p
-}
-
-func New(p Params) Manager {
+func New(p config.Config) Manager {
 
 	p = p.Sanitize()
 
-	defaultImage := DefaultImageName
-
-	if p.DefaultImage == "" {
-		p.DefaultImage = DefaultImageName
-	}
-
 	dcm := &dockerComposeManager{
-		root:         p.Dir,
-		uroot:        path.Join(p.Dir, "spaces"),
-		defaultImage: defaultImage,
-		params:       p,
+		root:   p.Dir,
+		uroot:  path.Join(p.Dir, "spaces"),
+		params: p,
 	}
 
 	if len(p.DnsNameservers) > 0 {
@@ -163,11 +133,10 @@ func New(p Params) Manager {
 }
 
 type dockerComposeManager struct {
-	root         string
-	uroot        string
-	cli          *client.Client
-	defaultImage string
-	params       Params
+	root   string
+	uroot  string
+	cli    *client.Client
+	params config.Config
 }
 
 func (dcm *dockerComposeManager) client() (*client.Client, error) {
@@ -233,7 +202,7 @@ func (dcm *dockerComposeManager) createArgsFile(dir string, space NewSpace) (New
 	log.Printf("Creating space %s for user %s at %s\n:%+v", space.Name, space.User, space.UserRoot, space)
 
 	if space.Image == "" {
-		space.Image = dcm.defaultImage
+		space.Image = dcm.params.DefaultImage
 	}
 
 	// make sure the image exists

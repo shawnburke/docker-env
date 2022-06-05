@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shawnburke/docker-env/backend/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -25,7 +26,7 @@ func TestWriteFiles(t *testing.T) {
 		User:     "the-user",
 		Password: "the-password",
 		Name:     "the-space",
-		params: Params{
+		params: config.Config{
 			DnsSearch:      "search.com",
 			DnsNameservers: []string{"1.2.3.4", "8.8.8.8"},
 		},
@@ -62,7 +63,7 @@ func TestCreateYaml(t *testing.T) {
 		User:     "the-user",
 		Password: "the-password",
 		Name:     "the-space",
-		params: Params{
+		params: config.Config{
 			DnsSearch:      "search.com",
 			DnsNameservers: []string{"1.2.3.4", "8.8.8.8"},
 		},
@@ -113,7 +114,7 @@ func TestNameserverArgs(t *testing.T) {
 		User:     "the-user",
 		Password: "the-password",
 		Name:     "the-space",
-		params: Params{
+		params: config.Config{
 
 			DnsNameservers: strings.Split("", ","),
 		},
@@ -152,8 +153,8 @@ func TestCopyResolvArgs(t *testing.T) {
 		User:     "the-user",
 		Password: "the-password",
 		Name:     "the-space",
-		params: Params{
-			CopyHostDns: true,
+		params: config.Config{
+			DnsCopyFromHost: true,
 		},
 	}
 
@@ -171,7 +172,7 @@ func TestNameserverArgsStripQuotes(t *testing.T) {
 		User:     "the-user",
 		Password: "the-password",
 		Name:     "the-space",
-		params: Params{
+		params: config.Config{
 			DnsNameservers: strings.Split(`"1.2.3.4,8.8.4.1"`, ","),
 		},
 	}

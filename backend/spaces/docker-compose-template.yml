@@ -15,7 +15,7 @@ services:
             - DOCKER_TLS_CERTDIR=
         volumes:
             - "{{.User}}-{{.Name}}-volume:/home/{{.User}}"
-            {{if .Params.CopyHostDns}}- "/etc/resolv.conf:/etc/resolv.conf"{{end}}
+            {{if .Params.DnsCopyFromHost}}- "/etc/resolv.conf:/etc/resolv.conf"{{end}}
         {{if .DockerArgs}}command: "{{.DockerArgs}}"{{end}}
 
     workspace:
