@@ -30,7 +30,6 @@ docker-build:
 	cd .. && docker build -t $(TAG) -f backend/Dockerfile .
 
 start-docker: docker-build
-	./start -r -d
-	echo "Server is now running as daemon, tailing logs... (you can quit this)"
-	docker logs -f docker-env-server
-	
+	./start -r -d -f
+
+.PHONY: start-docker docker-build start test install

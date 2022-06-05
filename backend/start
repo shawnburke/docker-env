@@ -3,12 +3,20 @@
 tag=docker-env-server:local
 args=""
 
-while getopts ":hrd" opt; do
+# Flags
+# -r restart existing container
+# -d run as daemon
+# -f follow logs
+
+while getopts ":hrdf" opt; do
   case ${opt} in
     d ) args="-d"
+      daemon=1
 	echo "setting daemon mode..."
       ;;
     r) rebuild=1
+      ;;
+    f) follow=1
       ;;
     h) echo "Usage: start [-h] [-r (rebuild)] [-d (daemon)] [container name default=docker-env-server]"
             exit 0
@@ -47,5 +55,11 @@ then
 fi
 
 # Note this runs on host network
-docker run  $args --name "$container_name" -e "PORT=3001" $args --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+docker run  $args --name "$container_name" --restart="unless-stopped" -e "PORT=3001" $args --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+
+if [[ -n "$daemon" && -n "$follow" ]]
+then
+  echo "Tailing logs, you can quit this..."
+  docker logs -f $container_name
+fi
 
