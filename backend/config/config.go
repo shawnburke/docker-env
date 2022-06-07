@@ -11,6 +11,7 @@ import (
 )
 
 const DefaultImageName = "docker-env-base:local"
+const configFileName = "docker-env.yaml"
 
 type Config struct {
 	Port            int      `yaml:"port,omitempty"`
@@ -42,7 +43,7 @@ func Load(configDir string) Config {
 		DefaultImage: DefaultImageName,
 	}
 
-	defer func() {
+	applyEnv := func(c Config) Config {
 		// override with any env vars
 
 		if env := os.Getenv("PORT"); env != "" {
@@ -72,11 +73,12 @@ func Load(configDir string) Config {
 		if d := os.Getenv("DNS_NAMESERVERS"); d != "" {
 			c.DnsNameservers = strings.Split(d, ",")
 		}
-	}()
-
-	raw, err := ioutil.ReadFile(path.Join(configDir, "docker-env.yaml"))
-	if os.IsNotExist(err) {
 		return c
+	}
+
+	raw, err := ioutil.ReadFile(path.Join(configDir, configFileName))
+	if os.IsNotExist(err) {
+		return applyEnv(c)
 	}
 
 	if err != nil {
@@ -89,7 +91,7 @@ func Load(configDir string) Config {
 		panic(err)
 	}
 
-	return c
+	return applyEnv(c)
 
 }
 
