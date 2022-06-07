@@ -54,8 +54,15 @@ then
   args="$args -e DNS_NAMESERVERS=$DNS_NAMESERVERS "
 fi
 
-# Note this runs on host network
-docker run  $args --name "$container_name" --restart="unless-stopped" -e "PORT=3001" $args --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" docker-env-server:local
+
+config=
+if [ -f docker-env.yaml ]
+then
+  config="-v $(pwd)/docker-env.yaml:/app/docker-env.yaml"
+fi
+
+# Note this runs on host netwolsrk
+docker run  $args --name "$container_name" --restart="unless-stopped" -e "PORT=3001" $args --network=host -v "/var/run/docker.sock:/var/run/docker.sock" -v "$(pwd)/../.cache/:/data" $config docker-env-server:local
 
 if [[ -n "$daemon" && -n "$follow" ]]
 then
